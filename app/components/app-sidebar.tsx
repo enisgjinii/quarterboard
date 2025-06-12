@@ -60,8 +60,10 @@ interface AppSidebarProps {
   modelLoaded: boolean
   uvMapSettings: UVMapSettings
   setUvMapSettings: (settings: UVMapSettings) => void
-  meshInfo?: MeshInfo[]
+  meshInfo: MeshInfo[]
   onTextTextureGenerated: (textureUrl: string) => void
+  panelWidth?: number
+  panelHeight?: number
 }
 
 export function AppSidebar({
@@ -81,6 +83,8 @@ export function AppSidebar({
   setUvMapSettings,
   meshInfo,
   onTextTextureGenerated,
+  panelWidth = 1024,
+  panelHeight = 1024,
 }: AppSidebarProps) {
   const modelFileRef = useRef<HTMLInputElement>(null)
   const textureFileRef = useRef<HTMLInputElement>(null)
@@ -245,16 +249,16 @@ export function AppSidebar({
                   <Separator />
                   <div className="space-y-4">
                     <div className="grid w-full max-w-sm items-center gap-1.5">
-                      <Label htmlFor="sign-name">Sign Name</Label>
+                      <Label htmlFor="sign-text">Sign Text</Label>
                       <Input
-                        id="sign-name"
+                        id="sign-text"
                         value={signName}
                         onChange={(e) => setSignName(e.target.value)}
-                        placeholder="Enter sign name"
+                        placeholder="Enter sign text"
                       />
                     </div>
                     <div className="grid w-full max-w-sm items-center gap-1.5">
-                      <Label htmlFor="sign-style">Sign Style</Label>
+                      <Label htmlFor="sign-style">Text Style</Label>
                       <Select value={signStyle} onValueChange={setSignStyle}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select style" />
@@ -270,34 +274,53 @@ export function AppSidebar({
                     </div>
                     <div className="grid w-full max-w-sm items-center gap-1.5">
                       <Label htmlFor="text-color">Text Color</Label>
-                      <Input
-                        id="text-color"
-                        type="color"
-                        value={textColor}
-                        onChange={(e) => setTextColor(e.target.value)}
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          id="text-color"
+                          type="color"
+                          value={textColor}
+                          onChange={(e) => setTextColor(e.target.value)}
+                          className="w-12 h-8 p-1"
+                        />
+                        <Input
+                          type="text"
+                          value={textColor}
+                          onChange={(e) => setTextColor(e.target.value)}
+                          className="flex-1"
+                        />
+                      </div>
                     </div>
                     <div className="grid w-full max-w-sm items-center gap-1.5">
-                      <Label htmlFor="text-background">Background Color</Label>
-                      <Input
-                        id="text-background"
-                        type="color"
-                        value={textBackgroundColor}
-                        onChange={(e) => setTextBackgroundColor(e.target.value)}
-                      />
+                      <Label htmlFor="text-bg-color">Background Color</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="text-bg-color"
+                          type="color"
+                          value={textBackgroundColor}
+                          onChange={(e) => setTextBackgroundColor(e.target.value)}
+                          className="w-12 h-8 p-1"
+                        />
+                        <Input
+                          type="text"
+                          value={textBackgroundColor}
+                          onChange={(e) => setTextBackgroundColor(e.target.value)}
+                          className="flex-1"
+                        />
+                      </div>
                     </div>
+                    <TextTextureGenerator
+                      text={signName}
+                      style={signStyle}
+                      color={textColor}
+                      backgroundColor={textBackgroundColor}
+                      onTextureGenerated={onTextTextureGenerated}
+                      maxWidth={panelWidth}
+                      maxHeight={panelHeight}
+                    />
                   </div>
                 </div>
               </CardContent>
             </Card>
-
-            <TextTextureGenerator
-              text={signName}
-              style={signStyle}
-              color={textColor}
-              backgroundColor={textBackgroundColor}
-              onTextureGenerated={onTextTextureGenerated}
-            />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-4">

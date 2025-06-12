@@ -37,6 +37,10 @@ export default function Component() {
     lineColor: "#000000",
   })
 
+  // Panel dimensions
+  const panelWidth = 1024
+  const panelHeight = 1024
+
   const { theme, setTheme } = useTheme()
 
   useEffect(() => {
@@ -64,6 +68,8 @@ export default function Component() {
     setUvMapSettings,
     meshInfo,
     onTextTextureGenerated: handleTextTextureGenerated,
+    panelWidth,
+    panelHeight,
   }
 
   return (
