@@ -1,9 +1,10 @@
 "use client"
 
-import { useRef, useEffect, useMemo, useState } from "react"
+import { useRef, useEffect, useMemo, useState, useCallback } from "react"
 import { useGLTF, OrbitControls, Center, Text3D, Text } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
+import { GLTFLoader, GLTF } from "three/examples/jsm/loaders/GLTFLoader"
 
 interface ModelViewerProps {
   modelPath: string
@@ -62,62 +63,85 @@ export function ModelViewer({
   const [originalModelGeometry, setOriginalModelGeometry] = useState<THREE.BufferGeometry | null>(null)
   const { scene } = useGLTF(modelPath)
   const { camera } = useThree()
+  const viewport = useThree((state) => state.viewport)
 
-  // Calculate model bounds and center it
+  // Load model
   useEffect(() => {
-    if (scene) {
-      console.log('Model loaded:', scene)
-      
-      // Store original geometry for engraving operations
-      scene.traverse((child) => {
-        if (child instanceof THREE.Mesh && !originalModelGeometry) {
-          setOriginalModelGeometry(child.geometry.clone())
+    if (modelPath) {
+      setIsLoading(true)
+      const loader = new GLTFLoader()
+      loader.load(modelPath, (gltf: GLTF) => {
+        const newScene = gltf.scene
+        
+        // Store original geometry for engraving operations
+        newScene.traverse((child: THREE.Object3D) => {
+          if (child instanceof THREE.Mesh && !originalModelGeometry) {
+            setOriginalModelGeometry(child.geometry.clone())
+          }
+        })
+        
+        // Calculate bounding box
+        const box = new THREE.Box3().setFromObject(newScene)
+        setModelBounds(box)
+        
+        // Center the model
+        const center = box.getCenter(new THREE.Vector3())
+        newScene.position.sub(center)
+        
+        // Scale model to fit better in view
+        const size = box.getSize(new THREE.Vector3())
+        const maxSize = Math.max(size.x, size.y, size.z)
+        const targetSize = Math.min(viewport.width, viewport.height) * 0.8 // 80% of viewport
+        if (maxSize > 0) {
+          const scale = targetSize / maxSize
+          newScene.scale.multiplyScalar(scale)
         }
+        
+        setIsLoading(false)
+        onModelLoad?.(newScene)
       })
-      
-      // Calculate bounding box
-      const box = new THREE.Box3().setFromObject(scene)
-      setModelBounds(box)
-      
-      // Center the model
-      const center = box.getCenter(new THREE.Vector3())
-      scene.position.sub(center)
-      
-      // Scale model to fit better in view
-      const size = box.getSize(new THREE.Vector3())
-      const maxSize = Math.max(size.x, size.y, size.z)
-      const targetSize = 3
-      if (maxSize > 0) {
-        const scale = targetSize / maxSize
-        scene.scale.multiplyScalar(scale)
-      }
-      
-      console.log('Model centered and scaled')
-      setIsLoading(false)
-      onModelLoad?.(scene)
     }
-  }, [scene, onModelLoad])
+  }, [modelPath, onModelLoad, viewport])
 
-  // Adjust text position based on model size
+  // Calculate center position based on viewport and model bounds
+  const calculateCenterPosition = useCallback(() => {
+    if (!modelBounds) return { x: 0, y: 0, z: 0.2 }
+    
+    const center = modelBounds.getCenter(new THREE.Vector3())
+    const size = modelBounds.getSize(new THREE.Vector3())
+    const maxDimension = Math.max(size.x, size.y, size.z)
+    
+    // Calculate offset based on viewport size and model dimensions
+    const viewportAspect = viewport.width / viewport.height
+    const zOffset = maxDimension * (viewportAspect > 1 ? 0.15 : 0.25) // Adjust offset based on aspect ratio
+    
+    return {
+      x: center.x,
+      y: center.y + (size.y * 0.1), // Slightly above center
+      z: center.z + zOffset
+    }
+  }, [modelBounds, viewport])
+
+  // Update camera position based on model bounds
   useEffect(() => {
-    if (scene) {
-      const box = new THREE.Box3().setFromObject(scene);
-      const center = box.getCenter(new THREE.Vector3());
-      scene.position.sub(center);
-
-      const size = box.getSize(new THREE.Vector3());
-      const maxSize = Math.max(size.x, size.y, size.z);
-      const targetSize = 3;
-      if (maxSize > 0) {
-        const scale = targetSize / maxSize;
-        scene.scale.multiplyScalar(scale);
-      }
-
-      textPosition.x = 0;
-      textPosition.y = size.y / 2 + 0.5; // Adjust text above the model
-      textPosition.z = 0;
+    if (modelBounds && camera) {
+      const center = modelBounds.getCenter(new THREE.Vector3())
+      const size = modelBounds.getSize(new THREE.Vector3())
+      const maxDimension = Math.max(size.x, size.y, size.z)
+      
+      // Position camera based on model size and viewport
+      const viewportAspect = viewport.width / viewport.height
+      const distance = maxDimension * (viewportAspect > 1 ? 2.5 : 3.5) // Adjust distance based on aspect ratio
+      
+      camera.position.set(center.x, center.y, center.z + distance)
+      camera.lookAt(center)
+      
+      // Update camera's near and far planes
+      camera.near = 0.1
+      camera.far = distance * 4
+      camera.updateProjectionMatrix()
     }
-  }, [scene])
+  }, [modelBounds, camera, viewport])
 
   // Setup shadows
   useEffect(() => {
@@ -238,6 +262,8 @@ export function ModelViewer({
     return null
   }
 
+  const centerPos = calculateCenterPosition()
+
   return (
     <>      {/* Main scene */}
       <Center>
@@ -252,9 +278,9 @@ export function ModelViewer({
           {text3D && (
             <Text3D
               font="/fonts/helvetiker_regular.typeface.json"
-              position={[textPosition.x, textPosition.y, textPosition.z]}
-              rotation={[textRotation.x, textRotation.y, textRotation.z]}
-              scale={[textScale.x, textScale.y, textScale.z]}
+              position={[centerPos.x, centerPos.y, centerPos.z]}
+              rotation={[0, 0, 0]}
+              scale={[1, 1, 1]}
               size={text3DOptions.size || 0.15}
               height={text3DOptions.height || 0.03}
               curveSegments={text3DOptions.curveSegments || 12}
@@ -276,9 +302,9 @@ export function ModelViewer({
           )}
           {overlayText && (
             <Text
-              position={[textPosition.x, textPosition.y, textPosition.z]}
-              rotation={[textRotation.x, textRotation.y, textRotation.z]}
-              scale={[textScale.x, textScale.y, textScale.z]}
+              position={[centerPos.x, centerPos.y, centerPos.z]}
+              rotation={[0, 0, 0]}
+              scale={[1, 1, 1]}
               fontSize={fontSize}
               color={textColor}
               anchorX="center"
