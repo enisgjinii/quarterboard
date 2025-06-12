@@ -85,13 +85,22 @@ export function AppSidebar({
   setText3D = () => {},
   textRotation = { x: 0, y: 0, z: 0 },
   setTextRotation = () => {},
-  textScale = { x: 1, y: 1, z: 1 },
+  textScale = { x: 0.8, y: 0.8, z: 0.8 },
   setTextScale = () => {},
-  text3DOptions = {},
+  text3DOptions = {
+    size: 0.1,
+    height: 0.02,
+    curveSegments: 8,
+    bevelEnabled: true,
+    bevelThickness: 0.003,
+    bevelSize: 0.001,
+    bevelOffset: 0,
+    bevelSegments: 2
+  },
   setText3DOptions = () => {},
   textMaterial = 'standard',
   setTextMaterial = () => {},
-  engraveDepth = 0.01,
+  engraveDepth = 0.005,
   setEngraveDepth = () => {},
   isEngraving = false,
   setIsEngraving = () => {}
@@ -369,7 +378,7 @@ export function AppSidebar({
                       <Input
                         type="range"
                         min="0.1"
-                        max="3"
+                        max="2"
                         step="0.1"
                         value={textScale.x}
                         onChange={(e) => {
@@ -384,7 +393,7 @@ export function AppSidebar({
                   {/* Engraving Controls */}
                   {textMaterial === 'engraved' && (
                     <div>
-                      <Label className="text-sm font-medium mb-3 block">Engraving</Label>
+                      <Label className="text-sm font-medium mb-3 block">Engraving Settings</Label>
                       <div className="space-y-3">
                         <div className="flex items-center space-x-2">
                           <Switch
@@ -394,67 +403,111 @@ export function AppSidebar({
                           <Label className="text-sm">Enable Engraving</Label>
                         </div>
                         {isEngraving && (
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs text-muted-foreground">Engrave Depth</span>
-                              <span className="text-xs bg-muted px-2 py-1 rounded">
-                                {engraveDepth.toFixed(3)}
-                              </span>
+                          <>
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-muted-foreground">Engrave Depth</span>
+                                <span className="text-xs bg-muted px-2 py-1 rounded">
+                                  {engraveDepth.toFixed(3)}
+                                </span>
+                              </div>
+                              <Input
+                                type="range"
+                                min="0.001"
+                                max="0.05"
+                                step="0.001"
+                                value={engraveDepth}
+                                onChange={(e) => setEngraveDepth(parseFloat(e.target.value))}
+                                className="w-full"
+                              />
                             </div>
-                            <Input
-                              type="range"
-                              min="0.001"
-                              max="0.05"
-                              step="0.001"
-                              value={engraveDepth}
-                              onChange={(e) => setEngraveDepth(parseFloat(e.target.value))}
-                              className="w-full"
-                            />
-                          </div>
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-muted-foreground">Bevel Size</span>
+                                <span className="text-xs bg-muted px-2 py-1 rounded">
+                                  {text3DOptions.bevelSize?.toFixed(3) || '0.001'}
+                                </span>
+                              </div>
+                              <Input
+                                type="range"
+                                min="0.000"
+                                max="0.005"
+                                step="0.001"
+                                value={text3DOptions.bevelSize || 0.001}
+                                onChange={(e) => setText3DOptions({
+                                  ...text3DOptions,
+                                  bevelSize: parseFloat(e.target.value)
+                                })}
+                                className="w-full"
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs text-muted-foreground">Bevel Thickness</span>
+                                <span className="text-xs bg-muted px-2 py-1 rounded">
+                                  {text3DOptions.bevelThickness?.toFixed(3) || '0.003'}
+                                </span>
+                              </div>
+                              <Input
+                                type="range"
+                                min="0.000"
+                                max="0.010"
+                                step="0.001"
+                                value={text3DOptions.bevelThickness || 0.003}
+                                onChange={(e) => setText3DOptions({
+                                  ...text3DOptions,
+                                  bevelThickness: parseFloat(e.target.value)
+                                })}
+                                className="w-full"
+                              />
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
-                  )}                    {/* Quick Actions */}
-                    <div>
-                      <Label className="text-sm font-medium mb-2 block">Quick Actions</Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setTextPosition({ x: 0, y: 0, z: 0.2 })
-                            setTextRotation({ x: 0, y: 0, z: 0 })
-                            setTextScale({ x: 1, y: 1, z: 1 })
-                          }}
-                        >
-                          Center Text
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setText3D("")}
-                        >
-                          Clear Text
-                        </Button>
-                      </div>
-                      <div className="mt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => {
-                            setText3D("SAMPLE")
-                            setTextPosition({ x: 0, y: 0, z: 0.2 })
-                            setTextRotation({ x: 0, y: 0, z: 0 })
-                            setTextScale({ x: 1, y: 1, z: 1 })
-                            setTextColor("#ff0000")
-                            setTextMaterial('standard')
-                          }}
-                        >
-                          Reset All
-                        </Button>
-                      </div>
+                  )}
+
+                  {/* Quick Actions */}
+                  <div>
+                    <Label className="text-sm font-medium mb-2 block">Quick Actions</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setTextPosition({ x: 0, y: 0, z: 0.2 })
+                          setTextRotation({ x: 0, y: 0, z: 0 })
+                          setTextScale({ x: 1, y: 1, z: 1 })
+                        }}
+                      >
+                        Center Text
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setText3D("")}
+                      >
+                        Clear Text
+                      </Button>
                     </div>
+                    <div className="mt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => {
+                          setText3D("SAMPLE")
+                          setTextPosition({ x: 0, y: 0, z: 0.2 })
+                          setTextRotation({ x: 0, y: 0, z: 0 })
+                          setTextScale({ x: 1, y: 1, z: 1 })
+                          setTextColor("#ff0000")
+                          setTextMaterial('standard')
+                        }}
+                      >
+                        Reset All
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

@@ -5,6 +5,7 @@ import { useGLTF, OrbitControls, Center, Text3D, Text } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
 import { GLTFLoader, GLTF } from "three/examples/jsm/loaders/GLTFLoader"
+import { CSG } from 'three-csg-ts'
 
 interface ModelViewerProps {
   modelPath: string
@@ -88,20 +89,25 @@ export function ModelViewer({
         const center = box.getCenter(new THREE.Vector3())
         newScene.position.sub(center)
         
-        // Scale model to fit better in view
+        // Scale model to fit an extremely small size
         const size = box.getSize(new THREE.Vector3())
         const maxSize = Math.max(size.x, size.y, size.z)
-        const targetSize = Math.min(viewport.width, viewport.height) * 0.5 // 50% of viewport (was 0.8)
+        const targetSize = 0.3 // Drastically reduced from 0.8 to 0.3
         if (maxSize > 0) {
           const scale = targetSize / maxSize
-          newScene.scale.multiplyScalar(scale)
+          newScene.scale.setScalar(scale)
         }
+        
+        // Re-center after scaling
+        const newBox = new THREE.Box3().setFromObject(newScene)
+        const newCenter = newBox.getCenter(new THREE.Vector3())
+        newScene.position.sub(newCenter)
         
         setIsLoading(false)
         onModelLoad?.(newScene)
       })
     }
-  }, [modelPath, onModelLoad, viewport])
+  }, [modelPath, onModelLoad])
 
   // Calculate center position based on viewport and model bounds
   const calculateCenterPosition = useCallback(() => {
@@ -130,7 +136,7 @@ export function ModelViewer({
     // Place text at center X/Z, and at the top Y of the model
     let y = box.max.y;
     // If engraving, move slightly into the model, else sit just above
-    y += isEngraving ? -((text3DOptions.height || 0.03) / 2) : 0.01;
+    y += isEngraving ? -((text3DOptions.height || 0.02) / 2) : 0.005; // Reduced height and offset
     return {
       x: center.x,
       y,
@@ -145,16 +151,16 @@ export function ModelViewer({
       const size = modelBounds.getSize(new THREE.Vector3())
       const maxDimension = Math.max(size.x, size.y, size.z)
       
-      // Position camera based on model size and viewport
+      // Position camera much closer to the tiny model
       const viewportAspect = viewport.width / viewport.height
-      const distance = maxDimension * (viewportAspect > 1 ? 2.5 : 3.5) // Adjust distance based on aspect ratio
+      const distance = maxDimension * (viewportAspect > 1 ? 0.8 : 1) // Significantly reduced distance
       
       camera.position.set(center.x, center.y, center.z + distance)
       camera.lookAt(center)
       
       // Update camera's near and far planes
       camera.near = 0.1
-      camera.far = distance * 4
+      camera.far = distance * 2 // Reduced far plane
       camera.updateProjectionMatrix()
     }
   }, [modelBounds, camera, viewport])
@@ -248,24 +254,45 @@ export function ModelViewer({
 
     console.log('Applying engraving effect...')
     
-    // This is a simplified approach - in a real implementation you'd use a CSG library
-    // For now, we'll simulate engraving by adjusting the text position and material
     scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.name === 'text3D') {
-        // Move text slightly into the model surface
-        child.position.z -= engraveDepth
+        // Create a copy of the original model geometry
+        const modelGeometry = originalModelGeometry.clone();
+        const modelMesh = new THREE.Mesh(modelGeometry, new THREE.MeshStandardMaterial());
         
-        // Apply engraved material
-        child.material = new THREE.MeshStandardMaterial({
-          color: materialColor.clone().multiplyScalar(0.4),
-          metalness: 0.9,
-          roughness: 0.1,
-          transparent: true,
-          opacity: 0.8
-        })
+        // Get the text geometry
+        const textGeometry = child.geometry.clone();
+        const textMesh = new THREE.Mesh(textGeometry, new THREE.MeshStandardMaterial());
+        
+        // Position the text mesh for engraving
+        textMesh.position.copy(child.position);
+        textMesh.rotation.copy(child.rotation);
+        textMesh.scale.copy(child.scale);
+        
+        // Perform CSG subtraction
+        try {
+          const result = CSG.subtract(modelMesh, textMesh);
+          
+          // Update the model's geometry with the engraved result
+          if (result.geometry) {
+            child.geometry.dispose(); // Clean up old geometry
+            child.geometry = result.geometry;
+            
+            // Apply engraved material
+            child.material = new THREE.MeshStandardMaterial({
+              color: materialColor.clone().multiplyScalar(0.4),
+              metalness: 0.9,
+              roughness: 0.1,
+              transparent: true,
+              opacity: 0.8
+            });
+          }
+        } catch (error) {
+          console.error('CSG operation failed:', error);
+        }
       }
-    })
-  }, [scene, text3D, isEngraving, engraveDepth, materialColor, originalModelGeometry])
+    });
+  }, [scene, text3D, isEngraving, engraveDepth, materialColor, originalModelGeometry]);
 
   // Animation loop
   useFrame(() => {
@@ -288,7 +315,6 @@ export function ModelViewer({
         <group ref={groupRef}>
           <primitive 
             object={scene} 
-            scale={[1, 1, 1]}
             position={[0, 0, 0]}
             rotation={[0, 0, 0]}
           />
@@ -298,23 +324,23 @@ export function ModelViewer({
               font="/fonts/helvetiker_regular.typeface.json"
               position={[textOnModelPos.x, textOnModelPos.y, textOnModelPos.z]}
               rotation={[0, 0, 0]}
-              scale={[textScale.x, textScale.y, textScale.z]}
-              size={text3DOptions.size || 0.15}
-              height={text3DOptions.height || 0.03}
-              curveSegments={text3DOptions.curveSegments || 12}
+              scale={[textScale.x * 0.2, textScale.y * 0.2, textScale.z * 0.2]} // Drastically reduced text scale
+              size={text3DOptions.size || 0.02} // Much smaller default size
+              height={text3DOptions.height || 0.005} // Much smaller default height
+              curveSegments={text3DOptions.curveSegments || 8}
               bevelEnabled={text3DOptions.bevelEnabled ?? true}
-              bevelThickness={text3DOptions.bevelThickness || 0.005}
-              bevelSize={text3DOptions.bevelSize || 0.002}
+              bevelThickness={text3DOptions.bevelThickness || 0.0005} // Tiny bevel
+              bevelSize={text3DOptions.bevelSize || 0.0002} // Tiny bevel size
               bevelOffset={text3DOptions.bevelOffset || 0}
-              bevelSegments={text3DOptions.bevelSegments || 3}
+              bevelSegments={text3DOptions.bevelSegments || 2}
             >
               {text3D}
               <meshStandardMaterial 
                 color={textColor}
                 emissive={textMaterial === 'emissive' ? textColor : undefined}
-                emissiveIntensity={textMaterial === 'emissive' ? 0.3 : undefined}
-                metalness={textMaterial === 'engraved' ? 0.8 : 0.1}
-                roughness={textMaterial === 'engraved' ? 0.2 : 0.3}
+                emissiveIntensity={textMaterial === 'emissive' ? 0.2 : undefined}
+                metalness={textMaterial === 'engraved' ? 0.6 : 0.1}
+                roughness={textMaterial === 'engraved' ? 0.3 : 0.4}
               />
             </Text3D>
           )}
@@ -335,14 +361,14 @@ export function ModelViewer({
       </Center>
 
       {/* Improved lighting setup */}
-      <ambientLight intensity={0.6} />
+      <ambientLight intensity={0.7} />
       <directionalLight 
         ref={directionalLightRef}
-        position={[10, 10, 5]} 
-        intensity={1.0}
+        position={[5, 5, 3]}
+        intensity={0.8}
         castShadow
       />
-      <pointLight position={[-10, -10, -5]} intensity={0.3} />
+      <pointLight position={[-5, -5, -3]} intensity={0.2} />
 
       {/* Controls */}
       <OrbitControls
@@ -350,12 +376,13 @@ export function ModelViewer({
         enableDamping
         dampingFactor={0.05}
         target={[0, 0, 0]}
-        minDistance={1}
-        maxDistance={20}
+        minDistance={0.5}
+        maxDistance={10}
+        maxPolarAngle={Math.PI / 2}
       />
 
       {/* Environment helpers */}
-      <gridHelper args={[10, 10]} />
+      <gridHelper args={[5, 5]} />
     </>
   )
 }
