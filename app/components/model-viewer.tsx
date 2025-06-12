@@ -1,9 +1,87 @@
 "use client"
 
-import { useRef, useEffect, useMemo, useState } from "react"
+import { useRef, useEffect, useMemo, useState, useCallback } from "react"
 import { useGLTF, OrbitControls, Center, Html } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
+
+// Create a canvas texture with text
+const createTextTexture = (
+  text: string, 
+  options: {
+    fontSize?: number,
+    fontFamily?: string,
+    textColor?: string,
+    backgroundColor?: string,
+    width?: number,
+    height?: number,
+    padding?: number
+  } = {}
+): THREE.CanvasTexture => {
+  const {
+    fontSize = 64,
+    fontFamily = 'Arial, sans-serif',
+    textColor = '#ffffff',
+    backgroundColor = 'transparent',
+    width = 512,
+    height = 512,
+    padding = 20
+  } = options
+
+  // Create canvas
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const context = canvas.getContext('2d')!
+
+  // Set background
+  if (backgroundColor !== 'transparent') {
+    context.fillStyle = backgroundColor
+    context.fillRect(0, 0, width, height)
+  }
+
+  // Set text properties
+  context.fillStyle = textColor
+  context.font = `${fontSize}px ${fontFamily}`
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+
+  // Handle line wrapping
+  const words = text.split(' ')
+  const lines: string[] = []
+  let currentLine = ''
+  const maxWidth = width - (padding * 2)
+
+  for (const word of words) {
+    const testLine = currentLine + (currentLine ? ' ' : '') + word
+    const metrics = context.measureText(testLine)
+    
+    if (metrics.width > maxWidth && currentLine) {
+      lines.push(currentLine)
+      currentLine = word
+    } else {
+      currentLine = testLine
+    }
+  }
+  if (currentLine) {
+    lines.push(currentLine)
+  }
+
+  // Draw text lines
+  const lineHeight = fontSize * 1.2
+  const totalHeight = lines.length * lineHeight
+  const startY = (height - totalHeight) / 2 + fontSize / 2
+
+  lines.forEach((line, index) => {
+    const y = startY + (index * lineHeight)
+    context.fillText(line, width / 2, y)
+  })
+
+  // Create and return texture
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.needsUpdate = true
+  return texture
+}
 
 // Text overlay component
 const TextOverlay = ({ text, color, size }: { text: string; color: string; size: number }) => {
@@ -37,6 +115,19 @@ interface ModelViewerProps {
   textColor?: string
   fontSize?: number
   textPosition?: { x: number; y: number; z: number }
+  // New props for direct material text application
+  materialText?: string
+  materialTextOptions?: {
+    fontSize?: number
+    fontFamily?: string
+    textColor?: string
+    backgroundColor?: string
+    width?: number
+    height?: number
+    padding?: number
+  }
+  targetMeshName?: string // Specific mesh to apply text to, if undefined applies to all meshes
+  textureRepeat?: { u: number; v: number } // How many times to repeat the texture
 }
 
 export function ModelViewer({
@@ -49,7 +140,10 @@ export function ModelViewer({
   overlayText = "",
   textColor = "#ffffff",
   fontSize = 1,
-  textPosition = { x: 0, y: 1, z: 0 }
+  textPosition = { x: 0, y: 1, z: 0 },  materialText = "",
+  materialTextOptions = {},
+  targetMeshName = undefined,
+  textureRepeat = { u: 1, v: 1 }
 }: ModelViewerProps) {
   const groupRef = useRef<THREE.Group>(null)
   const directionalLightRef = useRef<THREE.DirectionalLight>(null)
@@ -130,7 +224,6 @@ export function ModelViewer({
       }
     })
   }, [scene, materialColor])
-
   // Handle material preview
   useEffect(() => {
     if (!selectedMaterial || !materialPreview || !scene) return;
@@ -148,6 +241,80 @@ export function ModelViewer({
       }
     }
   }, [selectedMaterial, materialPreview, scene])
+
+  // Apply text texture to materials
+  useEffect(() => {
+    if (!scene || !materialText) return;
+
+    // Create text texture
+    const textTexture = createTextTexture(materialText, materialTextOptions)
+    textTexture.wrapS = THREE.RepeatWrapping
+    textTexture.wrapT = THREE.RepeatWrapping
+    textTexture.repeat.set(textureRepeat.u, textureRepeat.v)
+
+    // Apply texture to materials
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        // If targetMeshName is specified, only apply to that mesh
+        if (targetMeshName && child.name !== targetMeshName) {
+          return
+        }
+
+        const material = child.material
+        if (Array.isArray(material)) {
+          material.forEach(m => {
+            if (m instanceof THREE.MeshStandardMaterial) {
+              // Store original properties
+              if (!m.userData.originalMap) {
+                m.userData.originalMap = m.map
+                m.userData.originalColor = m.color.clone()
+              }
+              
+              // Apply text texture
+              m.map = textTexture
+              m.needsUpdate = true
+              
+              console.log(`Applied text texture to material in mesh: ${child.name}`)
+            }
+          })
+        } else if (material instanceof THREE.MeshStandardMaterial) {
+          // Store original properties
+          if (!material.userData.originalMap) {
+            material.userData.originalMap = material.map
+            material.userData.originalColor = material.color.clone()
+          }
+          
+          // Apply text texture
+          material.map = textTexture
+          material.needsUpdate = true
+          
+          console.log(`Applied text texture to mesh: ${child.name}`)
+        }
+      }
+    })
+
+    // Cleanup function to restore original materials
+    return () => {
+      scene.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          const material = child.material
+          if (Array.isArray(material)) {
+            material.forEach(m => {
+              if (m instanceof THREE.MeshStandardMaterial && m.userData.originalMap !== undefined) {
+                m.map = m.userData.originalMap
+                m.color.copy(m.userData.originalColor)
+                m.needsUpdate = true
+              }
+            })
+          } else if (material instanceof THREE.MeshStandardMaterial && material.userData.originalMap !== undefined) {
+            material.map = material.userData.originalMap
+            material.color.copy(material.userData.originalColor)
+            material.needsUpdate = true
+          }
+        }
+      })
+    }
+  }, [scene, materialText, materialTextOptions, targetMeshName, textureRepeat])
 
   // Animation loop
   useFrame(() => {

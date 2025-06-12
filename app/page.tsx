@@ -5,9 +5,10 @@ import { Canvas } from "@react-three/fiber"
 import { OrbitControls, Environment, Html, PerspectiveCamera, Stats } from "@react-three/drei"
 import { AppSidebar } from "./components/app-sidebar"
 import { Button } from "@/components/ui/button"
-import { Moon, Sun } from "lucide-react"
+import { Moon, Sun, Type } from "lucide-react"
 import { useTheme } from "next-themes"
 import { ModelViewer } from "./components/model-viewer"
+import { ModelViewerDemo } from "./components/model-viewer-demo"
 
 interface MeshInfo {
   name: string
@@ -33,6 +34,7 @@ export default function Component() {
   const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null)
   const [materialPreview, setMaterialPreview] = useState<string | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
+  const [showTextDemo, setShowTextDemo] = useState(false)
   
   // 3D Text overlay states
   const [overlayText, setOverlayText] = useState("")
