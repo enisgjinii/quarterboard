@@ -81,23 +81,36 @@ export function ModelViewer({
       
       // Center the model
       const center = box.getCenter(new THREE.Vector3())
-      scene.position.sub(center)      // Scale model to fit better in view
+      scene.position.sub(center)
+      
+      // Scale model to fit better in view
       const size = box.getSize(new THREE.Vector3())
       const maxSize = Math.max(size.x, size.y, size.z)
-      const targetSize = 2.0 // Consistent with model-viewer.tsx
+      const targetSize = 2.0
+      let modelScale = 1.0
       if (maxSize > 0) {
-        const scale = targetSize / maxSize
-        scene.scale.multiplyScalar(scale)
+        modelScale = targetSize / maxSize
+        scene.scale.multiplyScalar(modelScale)
       }
       
-      // Ensure model is upright (quarterboard should stand vertically)
+      // Ensure model is upright and centered
       scene.rotation.set(0, 0, 0)
+      scene.position.set(0, -box.min.y * modelScale, 0) // Ground the model
       
       console.log('Model centered and scaled')
       setIsLoading(false)
       onModelLoad?.(scene)
     }
   }, [scene, onModelLoad])
+
+  // Update camera position for better view
+  useEffect(() => {
+    if (camera) {
+      camera.position.set(0, 2, 5)
+      camera.lookAt(0, 0, 0)
+      camera.updateProjectionMatrix()
+    }
+  }, [camera])
 
   // Setup shadows
   useEffect(() => {
@@ -124,17 +137,54 @@ export function ModelViewer({
         if (Array.isArray(material)) {
           material.forEach(m => {
             if (m instanceof THREE.MeshStandardMaterial) {
-              m.color = materialColor
+              // Set BORDERS_curve_.006 to gold color
+              if (child.name === 'BORDERS_curve_.006') {
+                m.color.set('#FFD700') // Gold color
+                m.metalness = 0.8
+                m.roughness = 0.2
+              } else {
+                m.color = materialColor
+              }
               m.needsUpdate = true
             }
           })
         } else if (material instanceof THREE.MeshStandardMaterial) {
-          material.color = materialColor
+          // Set BORDERS_curve_.006 to gold color
+          if (child.name === 'BORDERS_curve_.006') {
+            material.color.set('#FFD700') // Gold color
+            material.metalness = 0.8
+            material.roughness = 0.2
+          } else {
+            material.color = materialColor
+          }
           material.needsUpdate = true
         }
       }
     })
   }, [scene, materialColor])
+
+  // Extract mesh information
+  useEffect(() => {
+    if (!scene) return;
+    
+    const meshInfo: any[] = []
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const geometry = child.geometry
+        meshInfo.push({
+          name: child.name,
+          vertices: geometry.attributes.position.count,
+          faces: geometry.index ? geometry.index.count / 3 : 0,
+          materials: Array.isArray(child.material) 
+            ? child.material.map((m, i) => `${child.name}_${i}`)
+            : [`${child.name}_0`],
+          uvSets: geometry.attributes.uv ? ['UV0'] : []
+        })
+      }
+    })
+    
+    console.log('Extracted mesh information:', meshInfo)
+  }, [scene])
 
   // Handle material preview
   useEffect(() => {

@@ -9,6 +9,7 @@ import { Moon, Sun, Type } from "lucide-react"
 import { useTheme } from "next-themes"
 import { ModelViewer } from "./components/model-viewer"
 import { ModelViewerDemo } from "./components/model-viewer-demo"
+import { UVMapEditor } from "./components/uv-map-editor"
 
 interface MeshInfo {
   name: string
@@ -25,9 +26,9 @@ interface MeshInfo {
 }
 
 export default function Component() {
-  const [modelUrl, setModelUrl] = useState("/models/quarterboard.glb")
+  const [modelUrl, setModelUrl] = useState("/models/quarterboard_2.glb")
   const [textureUrl, setTextureUrl] = useState<string | null>(null)
-  const [modelColor, setModelColor] = useState("#D4A574")
+  const [modelColor, setModelColor] = useState("#ffffff")
   const [modelLoaded, setModelLoaded] = useState(false)
   const [meshInfo, setMeshInfo] = useState<MeshInfo[]>([])
   const [mounted, setMounted] = useState(false)
@@ -40,11 +41,11 @@ export default function Component() {
   const [overlayText, setOverlayText] = useState("")
   const [materialText, setMaterialText] = useState("")
   const [text3D, setText3D] = useState("SAMPLE")
-  const [textColor, setTextColor] = useState("#ff0000")
+  const [textColor, setTextColor] = useState("#000000")
   const [fontSize, setFontSize] = useState(1)
-  const [textPosition, setTextPosition] = useState({ x: 0, y: 1, z: 0 }) // Position text above the model
+  const [textPosition, setTextPosition] = useState({ x: 0, y: 0.5, z: 0 })
   const [textRotation, setTextRotation] = useState({ x: 0, y: 0, z: 0 })
-  const [textScale, setTextScale] = useState({ x: 1, y: 1, z: 1 })
+  const [textScale, setTextScale] = useState({ x: 1.2, y: 1.2, z: 1.2 })
   const [text3DOptions, setText3DOptions] = useState({
     size: 0.2,
     height: 0.05,
@@ -56,8 +57,20 @@ export default function Component() {
     bevelSegments: 3
   })
   const [textMaterial, setTextMaterial] = useState<'standard' | 'emissive' | 'engraved'>('standard')
-  const [engraveDepth, setEngraveDepth] = useState(0.01)
+  const [engraveDepth, setEngraveDepth] = useState(0.02)
   const [isEngraving, setIsEngraving] = useState(false)
+
+  const [uvMapTexture, setUvMapTexture] = useState<string | null>(null)
+  const [uvMapText, setUvMapText] = useState("")
+  const [uvMapTextOptions, setUvMapTextOptions] = useState({
+    fontSize: 48,
+    fontFamily: "Arial",
+    textColor: "#000000",
+    backgroundColor: "transparent",
+    position: { x: 0.5, y: 0.5 },
+    rotation: 0,
+    scale: 1
+  })
 
   const { theme, setTheme } = useTheme()
 
@@ -108,65 +121,40 @@ export default function Component() {
     engraveDepth,
     setEngraveDepth,
     isEngraving,
-    setIsEngraving
+    setIsEngraving,
+    uvMapTexture,
+    setUvMapTexture
+  }
+
+  const handleUVTextUpdate = (text: string, options: any) => {
+    setUvMapText(text)
+    setUvMapTextOptions(options)
   }
 
   if (!mounted) {
     return null
   }
 
-  return (    <div className="h-screen w-screen flex overflow-hidden">
+  return (
+    <div className="h-screen w-screen flex overflow-hidden">
       {/* Left Sidebar */}
-      <div className="w-80 border-r bg-background flex-shrink-0">
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Type className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-semibold text-sm">3D Editor</h1>
-              <p className="text-xs text-muted-foreground">Model Customization</p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-          >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
-        </div>
+      <div className="w-96 border-r bg-background flex-shrink-0">
         <AppSidebar {...sidebarProps} />
-      </div>      {/* Main Viewport */}
-      <div className="flex-1 relative w-full h-full">
-        {showTextDemo && (
-          <div className="absolute top-4 right-4 z-10">
-            <Button
-              variant="outline"
-              onClick={() => setShowTextDemo(false)}
-              className="text-xs"
-            >
-              Close Demo
-            </Button>
-          </div>
-        )}
+      </div>
 
+      {/* Main Content */}
+      <div className="flex-1 relative">
         {showTextDemo ? (
           <ModelViewerDemo />
         ) : (
           <Canvas 
-            className="w-full h-full"
-            style={{ width: '100%', height: '100%' }}
             camera={{ 
-              position: [6, 4, 6],
-              fov: 60
+              position: [0, 0, 5],
+              fov: 50
             }}
             gl={{ 
               antialias: true,
-              alpha: true,
-              preserveDrawingBuffer: true
+              alpha: true
             }}
           >
             <Suspense fallback={
@@ -190,6 +178,9 @@ export default function Component() {
                 textMaterial={textMaterial}
                 engraveDepth={engraveDepth}
                 isEngraving={isEngraving}
+                uvMapTexture={uvMapTexture || undefined}
+                uvMapText={uvMapText}
+                uvMapTextOptions={uvMapTextOptions}
               />
             </Suspense>
           </Canvas>
