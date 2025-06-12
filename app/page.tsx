@@ -115,10 +115,9 @@ export default function Component() {
     return null
   }
 
-  return (
-    <div className="h-screen flex">
+  return (    <div className="h-screen w-screen flex overflow-hidden">
       {/* Left Sidebar */}
-      <div className="w-80 border-r bg-background">
+      <div className="w-80 border-r bg-background flex-shrink-0">
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -140,10 +139,8 @@ export default function Component() {
           </Button>
         </div>
         <AppSidebar {...sidebarProps} />
-      </div>
-
-      {/* Main Viewport */}
-      <div className="flex-1 relative">
+      </div>      {/* Main Viewport */}
+      <div className="flex-1 relative w-full h-full">
         {showTextDemo && (
           <div className="absolute top-4 right-4 z-10">
             <Button
@@ -160,13 +157,16 @@ export default function Component() {
           <ModelViewerDemo />
         ) : (
           <Canvas 
+            className="w-full h-full"
+            style={{ width: '100%', height: '100%' }}
             camera={{ 
               position: [0, 0, 5],
               fov: 50
             }}
             gl={{ 
               antialias: true,
-              alpha: true
+              alpha: true,
+              preserveDrawingBuffer: true
             }}
           >
             <Suspense fallback={

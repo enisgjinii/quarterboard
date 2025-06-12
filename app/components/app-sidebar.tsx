@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Download, Palette, Type } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
+import { ColorPicker } from "@/components/ui/color-picker"
 
 interface AppSidebarProps {
   modelUrl: string
@@ -122,14 +123,11 @@ export function AppSidebar({
             <TabsContent value="color" className="mt-0 space-y-4">
               <Card>
                 <CardContent className="p-4 space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Model Color</Label>
+                  <div>                    <Label className="text-sm font-medium mb-2 block">Model Color</Label>
                     <div className="flex gap-2">
-                      <Input
-                        type="color"
-                        value={modelColor}
-                        onChange={(e) => setModelColor(e.target.value)}
-                        className="w-12 h-9 p-1 rounded cursor-pointer"
+                      <ColorPicker 
+                        background={modelColor}
+                        setBackground={setModelColor}
                       />
                       <Input
                         type="text"
@@ -206,14 +204,11 @@ export function AppSidebar({
                   </div>
 
                   {/* Text Color */}
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Text Color</Label>
+                  <div>                    <Label className="text-sm font-medium mb-2 block">Text Color</Label>
                     <div className="flex gap-2">
-                      <Input
-                        type="color"
-                        value={textColor}
-                        onChange={(e) => setTextColor(e.target.value)}
-                        className="w-12 h-9 p-1 rounded cursor-pointer"
+                      <ColorPicker 
+                        background={textColor}
+                        setBackground={setTextColor}
                       />
                       <Input
                         type="text"

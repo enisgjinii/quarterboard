@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useEffect, useMemo, useState } from "react"
-import { useGLTF, OrbitControls, Center } from "@react-three/drei"
+import { useGLTF, OrbitControls, Center, Text3D } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
 
@@ -229,26 +229,29 @@ export function ModelViewer({
           />
             {/* 3D Text Geometry - Positioned relative to model center */}
           {text3D && (
-            <mesh
+            <Text3D
+              font="/fonts/helvetiker_regular.typeface.json"
               position={[textPosition.x, textPosition.y, textPosition.z]}
               rotation={[textRotation.x, textRotation.y, textRotation.z]}
               scale={[textScale.x, textScale.y, textScale.z]}
-              name="text3D"
+              size={text3DOptions.size || 0.15}
+              height={text3DOptions.height || 0.03}
+              curveSegments={text3DOptions.curveSegments || 12}
+              bevelEnabled={text3DOptions.bevelEnabled ?? true}
+              bevelThickness={text3DOptions.bevelThickness || 0.005}
+              bevelSize={text3DOptions.bevelSize || 0.002}
+              bevelOffset={text3DOptions.bevelOffset || 0}
+              bevelSegments={text3DOptions.bevelSegments || 3}
             >
-              <boxGeometry args={[Math.max(text3D.length * 0.1, 0.3), 0.15, 0.03]} />
+              {text3D}
               <meshStandardMaterial 
                 color={textColor}
-                {...(textMaterial === 'emissive' && { 
-                  emissive: textColor, 
-                  emissiveIntensity: 0.3 
-                })}
-                {...(textMaterial === 'engraved' && { 
-                  metalness: 0.8, 
-                  roughness: 0.2,
-                  color: new THREE.Color(textColor).multiplyScalar(0.6)
-                })}
+                emissive={textMaterial === 'emissive' ? textColor : undefined}
+                emissiveIntensity={textMaterial === 'emissive' ? 0.3 : undefined}
+                metalness={textMaterial === 'engraved' ? 0.8 : 0.1}
+                roughness={textMaterial === 'engraved' ? 0.2 : 0.3}
               />
-            </mesh>
+            </Text3D>
           )}
         </group>
       </Center>

@@ -9,10 +9,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
+    <html lang="en" suppressHydrationWarning>      <body className="w-screen h-screen overflow-hidden">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <SidebarProvider defaultOpen={true}>{children}</SidebarProvider>
+          <div className="w-full h-full">
+            <SidebarProvider defaultOpen={true}>{children}</SidebarProvider>
+          </div>
         </ThemeProvider>
       </body>
     </html>
