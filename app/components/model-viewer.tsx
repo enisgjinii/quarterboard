@@ -1,176 +1,152 @@
 "use client"
 
-import { useRef, useEffect, useMemo, useCallback } from "react"
-import { useGLTF } from "@react-three/drei"
-import { useFrame } from "@react-three/fiber"
+import { useRef, useEffect, useMemo, useState } from "react"
+import { useGLTF, useHelper, OrbitControls, Grid, GizmoHelper, GizmoViewport, useTexture } from "@react-three/drei"
+import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
 
-interface ModelViewerProps {
-  modelUrl: string
-  textureUrl?: string | null
-  color: string
-  onModelLoaded?: (loaded: boolean) => void
+interface MeshInfo {
+  name: string
+  type: string
+  position: THREE.Vector3
+  scale: THREE.Vector3
+  geometry?: THREE.BufferGeometry
 }
 
-const ModelViewer: React.FC<ModelViewerProps> = ({
-  modelUrl,
-  textureUrl,
+interface ModelViewerProps {
+  modelPath: string
+  color?: string
+  onModelLoad?: (info: any) => void
+  selectedMaterial?: string | null
+  materialPreview?: string | null
+  isPreviewMode?: boolean
+}
+
+export function ModelViewer({
+  modelPath,
   color,
-  onModelLoaded,
-}) => {
-  const meshRef = useRef<THREE.Group>(null)
-  const { scene } = useGLTF(modelUrl)
-  
-  // Memoize color for performance
-  const materialColor = useMemo(() => new THREE.Color(color), [color])
-    // Memoize texture loading
-  const texture = useMemo(() => {
-    if (!textureUrl) return null
-    
-    try {
-      const loader = new THREE.TextureLoader()
-      const loadedTexture = loader.load(
-        textureUrl,
-        // onLoad callback
-        (texture) => {
-          console.log('Texture loaded successfully')
-        },
-        // onProgress callback
-        (progress) => {
-          console.log('Texture loading progress:', progress)
-        },
-        // onError callback
-        (error) => {
-          console.error('Error loading texture:', error)
-        }
-      )
-      
-      // Enhanced texture settings for better text rendering
-      loadedTexture.wrapS = THREE.RepeatWrapping
-      loadedTexture.wrapT = THREE.RepeatWrapping
-      loadedTexture.generateMipmaps = true
-      loadedTexture.minFilter = THREE.LinearMipmapLinearFilter
-      loadedTexture.magFilter = THREE.LinearFilter
-      loadedTexture.flipY = false
-      loadedTexture.colorSpace = THREE.SRGBColorSpace
-      
-      return loadedTexture
-    } catch (error) {
-      console.warn("Failed to load texture:", error)
-      return null
-    }
-  }, [textureUrl])
-  // Use callback to prevent unnecessary re-renders
-  const setupMaterial = useCallback((child: THREE.Mesh) => {
-    if (textureUrl && texture) {
-      // Apply texture with enhanced material properties for text
-      child.material = new THREE.MeshStandardMaterial({
-        map: texture,
-        roughness: 0.3,
-        metalness: 0.1,
-        transparent: true,
-        alphaTest: 0.1,
-        // Enhance text visibility
-        emissiveIntensity: 0.1,
-        emissive: new THREE.Color(0x111111),
-      })
-    } else {
-      // Apply color material
-      child.material = new THREE.MeshStandardMaterial({
-        color: materialColor,
-        roughness: 0.4,
-        metalness: 0.6,
-      })
-    }
-    
-    child.castShadow = true
-    child.receiveShadow = true
-  }, [textureUrl, texture, materialColor])
+  onModelLoad,
+  selectedMaterial,
+  materialPreview,
+  isPreviewMode
+}: ModelViewerProps) {
+  const groupRef = useRef<THREE.Group>(null)
+  const directionalLightRef = useRef<THREE.DirectionalLight>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const { scene } = useGLTF(modelPath)
+  const { camera } = useThree()
+
   useEffect(() => {
-    if (!scene || !meshRef.current) return
-
-    let isMounted = true
-
-    try {
-      // Calculate bounding box and center the model
-      const box = new THREE.Box3().setFromObject(scene)
-      const center = box.getCenter(new THREE.Vector3())
-      const size = box.getSize(new THREE.Vector3())
-      const maxDimension = Math.max(size.x, size.y, size.z)
-      const scale = maxDimension > 0 ? 2 / maxDimension : 1
-
-      if (!isMounted) return
-
-      // Apply transformations
-      meshRef.current.scale.setScalar(scale)
-      meshRef.current.position.set(-center.x * scale, -center.y * scale, -center.z * scale)
-
-      // Apply materials to all meshes with better material management
-      let materialApplied = false
+    if (scene) {
+      console.log('Model loaded:', scene)
+      console.log('Scene children:', scene.children)
       scene.traverse((child) => {
-        if (child instanceof THREE.Mesh && isMounted) {
-          // Dispose of old material to prevent memory leaks
-          if (child.material && child.material !== scene.userData.originalMaterial) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach(mat => mat.dispose?.())
-            } else {
-              child.material.dispose?.()
-            }
-          }
-          
-          setupMaterial(child)
-          materialApplied = true
-          
-          // Store reference to original material if needed
-          if (!scene.userData.originalMaterialsStored) {
-            scene.userData.originalMaterial = child.material.clone()
-          }
+        if (child instanceof THREE.Mesh) {
+          console.log('Mesh:', child.name)
+          console.log('Position:', child.position)
+          console.log('Scale:', child.scale)
         }
       })
-      
-      scene.userData.originalMaterialsStored = true
+      setIsLoading(false)
+      onModelLoad?.(scene)
+    }
+  }, [scene, onModelLoad])
 
-      if (isMounted && materialApplied) {
-        onModelLoaded?.(true)
+  // Setup shadows
+  useEffect(() => {
+    if (directionalLightRef.current) {
+      directionalLightRef.current.castShadow = true
+      directionalLightRef.current.shadow.mapSize.width = 2048
+      directionalLightRef.current.shadow.mapSize.height = 2048
+      directionalLightRef.current.shadow.camera.near = 0.5
+      directionalLightRef.current.shadow.camera.far = 500
+      directionalLightRef.current.shadow.bias = -0.0001
+    }
+  }, [])
+
+  // Memoize material color
+  const materialColor = useMemo(() => new THREE.Color(color || '#ffffff'), [color])
+
+  // Apply color to all materials
+  useEffect(() => {
+    if (!scene) return;
+    
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        const material = child.material
+        if (Array.isArray(material)) {
+          material.forEach(m => {
+            if (m instanceof THREE.MeshStandardMaterial) {
+              m.color = materialColor
+              m.needsUpdate = true
+            }
+          })
+        } else if (material instanceof THREE.MeshStandardMaterial) {
+          material.color = materialColor
+          material.needsUpdate = true
+        }
       }
+    })
+  }, [scene, materialColor])
 
-    } catch (error) {
-      console.error('Error processing model:', error)
-      if (isMounted) {
-        onModelLoaded?.(false)
+  // Handle material preview
+  useEffect(() => {
+    if (!selectedMaterial || !materialPreview || !scene) return;
+    
+    const [meshName, materialIndex] = selectedMaterial.split('_')
+    const mesh = scene.getObjectByName(meshName)
+    if (mesh instanceof THREE.Mesh) {
+      const material = Array.isArray(mesh.material) 
+        ? mesh.material[parseInt(materialIndex)]
+        : mesh.material
+
+      if (material instanceof THREE.MeshStandardMaterial) {
+        material.color.set(materialPreview)
+        material.needsUpdate = true
       }
     }
+  }, [selectedMaterial, materialPreview, scene])
 
-    return () => {
-      isMounted = false
-    }
-  }, [scene, setupMaterial, onModelLoaded])
-
-  // Optimized animation with reduced frequency
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.1) * 0.05
+  // Animation loop
+  useFrame(() => {
+    if (groupRef.current && isPreviewMode) {
+      groupRef.current.rotation.y += 0.005
     }
   })
 
-  // Show fallback if scene is not available
-  if (!scene) {
-    return (
-      <mesh>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color={materialColor} roughness={0.4} metalness={0.6} />
-      </mesh>
-    )
+  if (isLoading) {
+    return null
   }
 
   return (
-    <group ref={meshRef}>
-      <primitive object={scene} />
-    </group>
+    <>
+      {/* Main scene */}
+      <group ref={groupRef}>
+        <primitive 
+          object={scene} 
+          scale={[1, 1, 1]}
+          position={[0, 0, 0]}
+          rotation={[0, 0, 0]}
+        />
+      </group>
+
+      {/* Basic lighting */}
+      <ambientLight intensity={1.0} />
+      <directionalLight position={[5, 5, 5]} intensity={1.0} />
+
+      {/* Controls */}
+      <OrbitControls
+        makeDefault
+        enableDamping
+        dampingFactor={0.05}
+        target={[0, 0, 0]}
+      />
+
+      {/* Debug helpers */}
+      <axesHelper args={[5]} />
+    </>
   )
 }
-
-export default ModelViewer
 
 // Preload the default model for better performance
 useGLTF.preload("/models/quarterboard.glb")

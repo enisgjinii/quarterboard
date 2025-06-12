@@ -2,12 +2,12 @@
 
 import { Suspense, useState, useEffect } from "react"
 import { Canvas } from "@react-three/fiber"
-import { OrbitControls, Environment, Html, PerspectiveCamera } from "@react-three/drei"
+import { OrbitControls, Environment, Html, PerspectiveCamera, Stats } from "@react-three/drei"
 import { AppSidebar } from "./components/app-sidebar"
 import { Button } from "@/components/ui/button"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-import ModelViewer from "./components/model-viewer"
+import { ModelViewer } from "./components/model-viewer"
 
 interface MeshInfo {
   name: string
@@ -15,6 +15,12 @@ interface MeshInfo {
   faces: number
   materials: string[]
   uvSets: string[]
+  materialData?: Array<{
+    color?: string
+    roughness?: number
+    metalness?: number
+    map?: string
+  }>
 }
 
 export default function Component() {
@@ -24,12 +30,19 @@ export default function Component() {
   const [modelLoaded, setModelLoaded] = useState(false)
   const [meshInfo, setMeshInfo] = useState<MeshInfo[]>([])
   const [mounted, setMounted] = useState(false)
+  const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null)
+  const [materialPreview, setMaterialPreview] = useState<string | null>(null)
+  const [isPreviewMode, setIsPreviewMode] = useState(false)
 
   const { theme, setTheme } = useTheme()
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  const handleModelLoad = (info: any) => {
+    setModelLoaded(true)
+  }
 
   const sidebarProps = {
     modelUrl,
@@ -41,79 +54,58 @@ export default function Component() {
     uvMapUrl: null,
     modelLoaded,
     meshInfo,
+    selectedMaterial,
+    setSelectedMaterial,
+    materialPreview,
+    setMaterialPreview,
+    isPreviewMode,
+    setIsPreviewMode
   }
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
-      <div className="w-64 bg-background border-r flex-shrink-0">
+      <div className="w-80 bg-background border-r flex-shrink-0">
         <AppSidebar {...sidebarProps} />
       </div>
-      <div className="flex-1 relative bg-gradient-to-br from-background to-muted/20 w-full overflow-hidden">
-        <Canvas
-          className="w-full h-full"
-          style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0 }}
-          dpr={[1, 2]}
-          shadows
-        >
-          <PerspectiveCamera
-            makeDefault
-            position={[0, 0, 5]}
-            fov={45}
-            near={0.1}
-            far={1000}
-          />
-          <Suspense
-            fallback={
-              <Html center>
-                <div className="flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm rounded-lg border shadow-lg">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
-                  <span className="text-foreground font-medium">Loading 3D model...</span>
-                </div>
-              </Html>
-            }
+      <div className="flex-1 relative">
+        <div className="absolute inset-0">
+          <Canvas 
+            camera={{ 
+              position: [0, 0, 5],
+              fov: 50
+            }}
+            gl={{ 
+              antialias: true,
+              alpha: true
+            }}
           >
-            <ModelViewer
-              modelUrl={modelUrl}
-              textureUrl={textureUrl}
-              color={modelColor}
-              onModelLoaded={setModelLoaded}
-            />
-            <OrbitControls
-              enablePan={true}
-              enableZoom={true}
-              enableRotate={true}
-              maxDistance={10}
-              minDistance={2}
-              target={[0, 0, 0]}
-              makeDefault
-            />
-            <Environment preset="studio" />
-            
-            <directionalLight
-              position={[5, 5, 5]}
-              intensity={1}
-              castShadow
-              shadow-mapSize-width={2048}
-              shadow-mapSize-height={2048}
-            />
-            <directionalLight
-              position={[-5, 5, -5]}
-              intensity={0.5}
-              castShadow
-            />
-            <pointLight position={[0, 5, 0]} intensity={0.5} />
-            <ambientLight intensity={0.5} />
-          </Suspense>
-        </Canvas>
-
-        {/* Theme Toggle */}
-        <div className="absolute top-4 right-4">
+            <Suspense fallback={
+              <Html center>
+                <div className="text-white">Loading model...</div>
+              </Html>
+            }>
+              <ModelViewer
+                modelPath={modelUrl}
+                color={modelColor}
+                onModelLoad={handleModelLoad}
+                selectedMaterial={selectedMaterial}
+                materialPreview={materialPreview}
+                isPreviewMode={isPreviewMode}
+              />
+            </Suspense>
+          </Canvas>
+        </div>
+        <div className="absolute top-4 right-4 z-10">
           <Button
             variant="outline"
             size="icon"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           >
-            {mounted && theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            {mounted && theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </div>
