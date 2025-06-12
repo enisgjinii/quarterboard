@@ -10,6 +10,7 @@ import { useTheme } from "next-themes"
 import { ModelViewer } from "./components/model-viewer"
 import { ModelViewerDemo } from "./components/model-viewer-demo"
 import { UVMapEditor } from "./components/uv-map-editor"
+import { SceneExporter } from "./components/scene-exporter"
 
 interface MeshInfo {
   name: string
@@ -147,43 +148,63 @@ export default function Component() {
         {showTextDemo ? (
           <ModelViewerDemo />
         ) : (
-          <Canvas 
-            camera={{ 
-              position: [0, 0, 5],
-              fov: 50
-            }}
-            gl={{ 
-              antialias: true,
-              alpha: true
-            }}
-          >
-            <Suspense fallback={
-              <Html center>
-                <div className="text-white">Loading model...</div>
-              </Html>
-            }>
-              <ModelViewer
-                modelPath={modelUrl}
-                color={modelColor}
-                onModelLoad={handleModelLoad}
-                selectedMaterial={selectedMaterial}
-                materialPreview={materialPreview}
-                isPreviewMode={isPreviewMode}
-                text3D={text3D}
-                textColor={textColor}
-                textPosition={textPosition}
-                textRotation={textRotation}
-                textScale={textScale}
-                text3DOptions={text3DOptions}
-                textMaterial={textMaterial}
-                engraveDepth={engraveDepth}
-                isEngraving={isEngraving}
-                uvMapTexture={uvMapTexture || undefined}
-                uvMapText={uvMapText}
-                uvMapTextOptions={uvMapTextOptions}
-              />
-            </Suspense>
-          </Canvas>
+          <>
+            <div className="absolute top-4 right-4 z-10">
+              <SceneExporter />
+            </div>
+            <Canvas 
+              camera={{ 
+                position: [0, 2, 6],
+                fov: 45,
+                near: 0.1,
+                far: 1000
+              }}
+              gl={{ 
+                antialias: true,
+                alpha: true
+              }}
+            >
+              <Suspense fallback={
+                <Html center>
+                  <div className="text-white">Loading model...</div>
+                </Html>
+              }>
+                <mesh>
+                  <gridHelper args={[50, 50, '#666666', '#444444']} />
+                </mesh>
+                <axesHelper args={[5]} />
+                {/* Center point markers */}
+                <mesh position={[0, 0, 0]}>
+                  <sphereGeometry args={[0.05, 16, 16]} />
+                  <meshBasicMaterial color="red" />
+                </mesh>
+                <mesh position={[0, 0.01, 0]}>
+                  <boxGeometry args={[0.1, 0.01, 0.1]} />
+                  <meshBasicMaterial color="yellow" transparent opacity={0.5} />
+                </mesh>
+                <ModelViewer
+                  modelPath={modelUrl}
+                  color={modelColor}
+                  onModelLoad={handleModelLoad}
+                  selectedMaterial={selectedMaterial}
+                  materialPreview={materialPreview}
+                  isPreviewMode={isPreviewMode}
+                  text3D={text3D}
+                  textColor={textColor}
+                  textPosition={textPosition}
+                  textRotation={textRotation}
+                  textScale={textScale}
+                  text3DOptions={text3DOptions}
+                  textMaterial={textMaterial}
+                  engraveDepth={engraveDepth}
+                  isEngraving={isEngraving}
+                  uvMapTexture={uvMapTexture || undefined}
+                  uvMapText={uvMapText}
+                  uvMapTextOptions={uvMapTextOptions}
+                />
+              </Suspense>
+            </Canvas>
+          </>
         )}
       </div>
     </div>

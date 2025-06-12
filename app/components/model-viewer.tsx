@@ -9,11 +9,40 @@ import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
 
 interface ModelViewerProps {
   modelPath: string
-  color?: string
+w  color?: string
+  onModelLoad?: (info: any) => void
+  selectedMaterial?: string | null
+  materialPreview?: string | null
+  isPreviewMode?: boolean
   text3D?: string
   textColor?: string
   textPosition?: { x: number; y: number; z: number }
+  textRotation?: { x: number; y: number; z: number }
   textScale?: { x: number; y: number; z: number }
+  text3DOptions?: {
+    size?: number
+    height?: number
+    curveSegments?: number
+    bevelEnabled?: boolean
+    bevelThickness?: number
+    bevelSize?: number
+    bevelOffset?: number
+    bevelSegments?: number
+  }
+  textMaterial?: 'standard' | 'emissive' | 'engraved'
+  engraveDepth?: number
+  isEngraving?: boolean
+  uvMapTexture?: string
+  uvMapText?: string
+  uvMapTextOptions?: {
+    fontSize?: number
+    fontFamily?: string
+    textColor?: string
+    backgroundColor?: string
+    width?: number
+    height?: number
+    padding?: number
+  }
 }
 
 export function ModelViewer({
@@ -70,30 +99,55 @@ export function ModelViewer({
       loader.load(modelPath, (gltf: GLTF) => {
         const newScene = gltf.scene
         
+        // Complete scene reset
+        newScene.matrix.identity()
+        newScene.matrixWorld.identity()
+        newScene.position.set(0, 0, 0)
+        newScene.rotation.set(0, 0, 0)
+        newScene.scale.set(1, 1, 1)
+        newScene.updateMatrix()
+        newScene.updateMatrixWorld(true)
+        
         // Calculate bounding box
         const box = new THREE.Box3().setFromObject(newScene)
         setModelBounds(box)
         
-        // Center the model horizontally
+        // Get center and size
         const center = box.getCenter(new THREE.Vector3())
-        newScene.position.x = -center.x
-        newScene.position.z = -center.z
-        
-        // Place model on the ground
         const size = box.getSize(new THREE.Vector3())
-        newScene.position.y = -box.min.y
+        console.log('Original bounds:', { center, size })
+        
+        // Create a matrix to center the model
+        const centerMatrix = new THREE.Matrix4().makeTranslation(-center.x, -center.y, -center.z)
+        newScene.applyMatrix4(centerMatrix)
         
         // Scale model to fit a reasonable size
         const maxSize = Math.max(size.x, size.y, size.z)
-        const targetSize = 2.0
+        const targetSize = 1.0 // Even smaller target size
         if (maxSize > 0) {
           const scale = targetSize / maxSize
-          newScene.scale.setScalar(scale)
+          const scaleMatrix = new THREE.Matrix4().makeScale(scale, scale, scale)
+          newScene.applyMatrix4(scaleMatrix)
         }
         
-        // Ensure model is upright
-        newScene.rotation.set(0, 0, 0)
+        // Recalculate bounds after transformations
+        const finalBox = new THREE.Box3().setFromObject(newScene)
+        const finalCenter = finalBox.getCenter(new THREE.Vector3())
+        const finalSize = finalBox.getSize(new THREE.Vector3())
+        console.log('Final bounds:', { finalCenter, finalSize })
         
+        // Force final position
+        newScene.position.set(
+          -finalCenter.x,
+          -finalBox.min.y + 0.01, // Small offset above ground
+          -finalCenter.z
+        )
+        
+        // Force update matrices
+        newScene.updateMatrix()
+        newScene.updateMatrixWorld(true)
+        
+        console.log('Final position:', newScene.position)
         setIsLoading(false)
       })
     }

@@ -67,46 +67,59 @@ export function ModelViewer({
   useEffect(() => {
     if (scene) {
       console.log('Model loaded:', scene)
-      
-      // Store original geometry for engraving operations
+
+      // 1. Gather all meshes and compute a combined bounding box
+      let combinedBox = new THREE.Box3();
+      let meshCount = 0;
       scene.traverse((child) => {
-        if (child instanceof THREE.Mesh && !originalModelGeometry) {
-          setOriginalModelGeometry(child.geometry.clone())
+        if (child instanceof THREE.Mesh) {
+          child.geometry.computeBoundingBox();
+          const meshBox = child.geometry.boundingBox.clone();
+          meshBox.applyMatrix4(child.matrixWorld);
+          combinedBox.union(meshBox);
+          meshCount++;
         }
-      })
-      
-      // Calculate bounding box
-      const box = new THREE.Box3().setFromObject(scene)
-      setModelBounds(box)
-      
-      // Center the model
-      const center = box.getCenter(new THREE.Vector3())
-      scene.position.sub(center)
-      
-      // Scale model to fit better in view
-      const size = box.getSize(new THREE.Vector3())
-      const maxSize = Math.max(size.x, size.y, size.z)
-      const targetSize = 2.0
-      let modelScale = 1.0
+      });
+      if (meshCount === 0) return; // No visible meshes
+
+      // 2. Center the group based on the combined bounding box
+      const center = combinedBox.getCenter(new THREE.Vector3());
+      const size = combinedBox.getSize(new THREE.Vector3());
+      console.log('Combined bounds:', { center, size });
+
+      // 3. Reset transforms
+      scene.position.set(0, 0, 0);
+      scene.rotation.set(0, 0, 0);
+      scene.scale.set(1, 1, 1);
+
+      // 4. Move the scene so the center is at the origin and ground it
+      scene.position.x = -center.x;
+      scene.position.y = -combinedBox.min.y;
+      scene.position.z = -center.z;
+
+      // 5. Scale to fit the grid
+      const maxSize = Math.max(size.x, size.y, size.z);
+      const targetSize = 2.0;
+      let modelScale = 1.0;
       if (maxSize > 0) {
-        modelScale = targetSize / maxSize
-        scene.scale.multiplyScalar(modelScale)
+        modelScale = targetSize / maxSize;
+        scene.scale.setScalar(modelScale);
       }
-      
-      // Ensure model is upright and centered
-      scene.rotation.set(0, 0, 0)
-      scene.position.set(0, -box.min.y * modelScale, 0) // Ground the model
-      
-      console.log('Model centered and scaled')
-      setIsLoading(false)
-      onModelLoad?.(scene)
+
+      // 6. Force update
+      scene.updateMatrix();
+      scene.updateMatrixWorld(true);
+
+      console.log('Final position:', scene.position);
+      setIsLoading(false);
+      onModelLoad?.(scene);
     }
   }, [scene, onModelLoad])
 
   // Update camera position for better view
   useEffect(() => {
     if (camera) {
-      camera.position.set(0, 2, 5)
+      camera.position.set(0, 2, 6)
       camera.lookAt(0, 0, 0)
       camera.updateProjectionMatrix()
     }
