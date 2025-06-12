@@ -92,4 +92,4 @@ export default function ModelViewer({ modelUrl, textureUrl, color }: ModelViewer
   }
 }
 
-useGLTF.preload("/models/object.glb")
+useGLTF.preload("/models/quarterboard.glb")

@@ -25,7 +25,7 @@ const TextTextureGenerator: React.FC<TextTextureGeneratorProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    if (!canvasRef.current) return
+    if (!canvasRef.current || !text.trim()) return
 
     const canvas = canvasRef.current
     const ctx = canvas.getContext("2d")
@@ -94,6 +94,9 @@ const TextTextureGenerator: React.FC<TextTextureGeneratorProps> = ({
     const wrapText = (text: string, maxWidth: number) => {
       const words = text.split(' ')
       const lines: string[] = []
+      
+      if (words.length === 0) return lines
+      
       let currentLine = words[0]
 
       for (let i = 1; i < words.length; i++) {
@@ -128,10 +131,10 @@ const TextTextureGenerator: React.FC<TextTextureGeneratorProps> = ({
     }
 
     // Draw wrapped text
-    const y = (maxHeight - (lines.length * fontSize * lineHeight)) / 2
+    const startY = (maxHeight - (lines.length * fontSize * lineHeight)) / 2 + fontSize
     lines.forEach((line, i) => {
       const x = maxWidth / 2
-      const lineY = y + (i * fontSize * lineHeight)
+      const lineY = startY + (i * fontSize * lineHeight)
       ctx.fillText(line, x, lineY)
     })
 
@@ -141,6 +144,7 @@ const TextTextureGenerator: React.FC<TextTextureGeneratorProps> = ({
 
     // Convert texture to data URL
     const dataUrl = canvas.toDataURL("image/png")
+    console.log("Generated text texture:", { text, style, color, backgroundColor, dataUrlLength: dataUrl.length })
     onTextureGenerated(dataUrl)
 
     // Cleanup
@@ -149,7 +153,7 @@ const TextTextureGenerator: React.FC<TextTextureGeneratorProps> = ({
     }
   }, [text, style, color, backgroundColor, onTextureGenerated, maxWidth, maxHeight])
 
-  return <canvas ref={canvasRef} style={{ display: "none" }} />
+  return <canvas ref={canvasRef} className="hidden" />
 }
 
 export default TextTextureGenerator 

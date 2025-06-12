@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import ModelViewer from "./components/model-viewer"
-import UVMapExtractor from "./components/uv-map-extractor"
-import TextTextureGenerator from "./components/text-texture-generator"
 
 interface MeshInfo {
   name: string
@@ -20,36 +18,18 @@ interface MeshInfo {
 }
 
 export default function Component() {
-  const [modelUrl, setModelUrl] = useState("/models/object.glb")
+  const [modelUrl, setModelUrl] = useState("/models/quarterboard.glb")
   const [textureUrl, setTextureUrl] = useState<string | null>(null)
   const [modelColor, setModelColor] = useState("#D4A574")
-  const [signStyle, setSignStyle] = useState("Modern")
-  const [signName, setSignName] = useState("Custom Sign")
-  const [uvMapUrl, setUvMapUrl] = useState<string | null>(null)
   const [modelLoaded, setModelLoaded] = useState(false)
   const [meshInfo, setMeshInfo] = useState<MeshInfo[]>([])
   const [mounted, setMounted] = useState(false)
-  const [uvMapSettings, setUvMapSettings] = useState({
-    resolution: 2048,
-    showWireframe: true,
-    showTexture: true,
-    backgroundColor: "#ffffff",
-    lineColor: "#000000",
-  })
-
-  // Panel dimensions
-  const panelWidth = 1024
-  const panelHeight = 1024
 
   const { theme, setTheme } = useTheme()
 
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  const handleTextTextureGenerated = (textureUrl: string) => {
-    setTextureUrl(textureUrl)
-  }
 
   const sidebarProps = {
     modelUrl,
@@ -58,18 +38,9 @@ export default function Component() {
     setTextureUrl,
     modelColor,
     setModelColor,
-    signStyle,
-    setSignStyle,
-    signName,
-    setSignName,
-    uvMapUrl,
+    uvMapUrl: null,
     modelLoaded,
-    uvMapSettings,
-    setUvMapSettings,
     meshInfo,
-    onTextTextureGenerated: handleTextTextureGenerated,
-    panelWidth,
-    panelHeight,
   }
 
   return (
@@ -106,16 +77,6 @@ export default function Component() {
               textureUrl={textureUrl}
               color={modelColor}
               onModelLoaded={setModelLoaded}
-            />
-            <UVMapExtractor
-              modelUrl={modelUrl}
-              onUVMapExtracted={setUvMapUrl}
-              resolution={uvMapSettings.resolution}
-              showWireframe={uvMapSettings.showWireframe}
-              showTexture={uvMapSettings.showTexture}
-              backgroundColor={uvMapSettings.backgroundColor}
-              lineColor={uvMapSettings.lineColor}
-              onMeshInfoExtracted={setMeshInfo}
             />
             <OrbitControls
               enablePan={true}
