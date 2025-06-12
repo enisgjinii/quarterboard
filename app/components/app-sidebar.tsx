@@ -44,6 +44,14 @@ interface AppSidebarProps {
   setMaterialPreview: (preview: string | null) => void
   isPreviewMode: boolean
   setIsPreviewMode: (mode: boolean) => void
+  overlayText?: string
+  setOverlayText?: (text: string) => void
+  textColor?: string
+  setTextColor?: (color: string) => void
+  fontSize?: number
+  setFontSize?: (size: number) => void
+  textPosition?: { x: number; y: number; z: number }
+  setTextPosition?: (position: { x: number; y: number; z: number }) => void
 }
 
 export function AppSidebar({
@@ -61,7 +69,15 @@ export function AppSidebar({
   materialPreview,
   setMaterialPreview,
   isPreviewMode,
-  setIsPreviewMode
+  setIsPreviewMode,
+  overlayText = "",
+  setOverlayText = () => {},
+  textColor: overlayTextColor = "#ffffff",
+  setTextColor: setOverlayTextColor = () => {},
+  fontSize: overlayFontSize = 1,
+  setFontSize: setOverlayFontSize = () => {},
+  textPosition: overlayTextPosition = { x: 0, y: 1, z: 0 },
+  setTextPosition: setOverlayTextPosition = () => {}
 }: AppSidebarProps) {
   // Text state
   const [textInput, setTextInput] = useState("SAMPLE TEXT")
@@ -351,7 +367,7 @@ export function AppSidebar({
       {/* Tabs - Fixed */}
       <div className="flex-shrink-0">
         <Tabs defaultValue="color" className="w-full">
-          <TabsList className="grid grid-cols-4 mx-4 mt-4 bg-muted">
+          <TabsList className="grid grid-cols-5 mx-4 mt-4 bg-muted">
             <TabsTrigger value="color" className="text-xs font-medium">
               <Palette className="w-3 h-3 mr-1.5" />
               Style
@@ -359,6 +375,10 @@ export function AppSidebar({
             <TabsTrigger value="text" className="text-xs font-medium">
               <Type className="w-3 h-3 mr-1.5" />
               Text
+            </TabsTrigger>
+            <TabsTrigger value="overlay" className="text-xs font-medium">
+              <Type className="w-3 h-3 mr-1.5" />
+              3D Text
             </TabsTrigger>
             <TabsTrigger value="materials" className="text-xs font-medium">
               <Layers className="w-3 h-3 mr-1.5" />
@@ -592,6 +612,151 @@ export function AppSidebar({
                         </>
                       )}
                     </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* 3D TEXT OVERLAY TAB */}
+              <TabsContent value="overlay" className="mt-0 space-y-4">
+                <Card>
+                  <CardContent className="p-4 space-y-4">
+                    {/* Text Input */}
+                    <div>
+                      <Label htmlFor="overlay-text-input" className="text-sm font-medium mb-2 block">3D Text Overlay</Label>
+                      <Input
+                        id="overlay-text-input"
+                        type="text"
+                        value={overlayText}
+                        onChange={(e) => setOverlayText(e.target.value)}
+                        placeholder="Enter text to display on model..."
+                        className="text-sm"
+                      />
+                    </div>
+
+                    <Separator />
+
+                    {/* Text Color */}
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">Text Color</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="color"
+                          value={overlayTextColor}
+                          onChange={(e) => setOverlayTextColor(e.target.value)}
+                          className="w-12 h-9 p-1 rounded cursor-pointer"
+                        />
+                        <Input
+                          type="text"
+                          value={overlayTextColor}
+                          onChange={(e) => setOverlayTextColor(e.target.value)}
+                          className="flex-1 text-xs font-mono"
+                          placeholder="#ffffff"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Font Size */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-sm font-medium">Font Size</Label>
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                          {overlayFontSize.toFixed(1)}
+                        </span>
+                      </div>
+                      <Input
+                        type="range"
+                        min="0.5"
+                        max="3"
+                        step="0.1"
+                        value={overlayFontSize}
+                        onChange={(e) => setOverlayFontSize(Number(e.target.value))}
+                        className="cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Position Controls */}
+                    <div>
+                      <Label className="text-sm font-medium mb-3 block">Text Position</Label>
+                      <div className="space-y-3">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <Label className="text-xs">X Position</Label>
+                            <span className="text-xs text-muted-foreground">{overlayTextPosition.x.toFixed(1)}</span>
+                          </div>
+                          <Input
+                            type="range"
+                            min="-3"
+                            max="3"
+                            step="0.1"
+                            value={overlayTextPosition.x}
+                            onChange={(e) => setOverlayTextPosition({
+                              ...overlayTextPosition,
+                              x: Number(e.target.value)
+                            })}
+                            className="cursor-pointer"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <Label className="text-xs">Y Position</Label>
+                            <span className="text-xs text-muted-foreground">{overlayTextPosition.y.toFixed(1)}</span>
+                          </div>
+                          <Input
+                            type="range"
+                            min="-3"
+                            max="3"
+                            step="0.1"
+                            value={overlayTextPosition.y}
+                            onChange={(e) => setOverlayTextPosition({
+                              ...overlayTextPosition,
+                              y: Number(e.target.value)
+                            })}
+                            className="cursor-pointer"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <Label className="text-xs">Z Position</Label>
+                            <span className="text-xs text-muted-foreground">{overlayTextPosition.z.toFixed(1)}</span>
+                          </div>
+                          <Input
+                            type="range"
+                            min="-3"
+                            max="3"
+                            step="0.1"
+                            value={overlayTextPosition.z}
+                            onChange={(e) => setOverlayTextPosition({
+                              ...overlayTextPosition,
+                              z: Number(e.target.value)
+                            })}
+                            className="cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">Quick Actions</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setOverlayText("")}
+                          className="text-xs"
+                        >
+                          Clear Text
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setOverlayTextPosition({ x: 0, y: 1, z: 0 })}
+                          className="text-xs"
+                        >
+                          Reset Position
+                        </Button>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>

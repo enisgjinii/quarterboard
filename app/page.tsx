@@ -33,6 +33,12 @@ export default function Component() {
   const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null)
   const [materialPreview, setMaterialPreview] = useState<string | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
+  
+  // 3D Text overlay states
+  const [overlayText, setOverlayText] = useState("")
+  const [textColor, setTextColor] = useState("#ffffff")
+  const [fontSize, setFontSize] = useState(1)
+  const [textPosition, setTextPosition] = useState({ x: 0, y: 1, z: 0 })
 
   const { theme, setTheme } = useTheme()
 
@@ -59,7 +65,15 @@ export default function Component() {
     materialPreview,
     setMaterialPreview,
     isPreviewMode,
-    setIsPreviewMode
+    setIsPreviewMode,
+    overlayText,
+    setOverlayText,
+    textColor,
+    setTextColor,
+    fontSize,
+    setFontSize,
+    textPosition,
+    setTextPosition
   }
 
   return (
@@ -91,6 +105,10 @@ export default function Component() {
                 selectedMaterial={selectedMaterial}
                 materialPreview={materialPreview}
                 isPreviewMode={isPreviewMode}
+                overlayText={overlayText}
+                textColor={textColor}
+                fontSize={fontSize}
+                textPosition={textPosition}
               />
             </Suspense>
           </Canvas>

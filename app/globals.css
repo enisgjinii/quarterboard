@@ -92,3 +92,12 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+.text-overlay-3d {
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+  text-align: center;
+}

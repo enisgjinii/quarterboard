@@ -1,16 +1,29 @@
 "use client"
 
 import { useRef, useEffect, useMemo, useState } from "react"
-import { useGLTF, useHelper, OrbitControls, Grid, GizmoHelper, GizmoViewport, useTexture } from "@react-three/drei"
+import { useGLTF, OrbitControls, Center, Html } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
 
-interface MeshInfo {
-  name: string
-  type: string
-  position: THREE.Vector3
-  scale: THREE.Vector3
-  geometry?: THREE.BufferGeometry
+// Text overlay component
+const TextOverlay = ({ text, color, size }: { text: string; color: string; size: number }) => {
+  const textRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (textRef.current) {
+      textRef.current.style.color = color
+      textRef.current.style.fontSize = `${size * 16}px`
+    }
+  }, [color, size])
+
+  return (
+    <div 
+      ref={textRef}
+      className="text-overlay-3d"
+    >
+      {text}
+    </div>
+  )
 }
 
 interface ModelViewerProps {
@@ -20,6 +33,10 @@ interface ModelViewerProps {
   selectedMaterial?: string | null
   materialPreview?: string | null
   isPreviewMode?: boolean
+  overlayText?: string
+  textColor?: string
+  fontSize?: number
+  textPosition?: { x: number; y: number; z: number }
 }
 
 export function ModelViewer({
@@ -28,18 +45,43 @@ export function ModelViewer({
   onModelLoad,
   selectedMaterial,
   materialPreview,
-  isPreviewMode
+  isPreviewMode,
+  overlayText = "",
+  textColor = "#ffffff",
+  fontSize = 1,
+  textPosition = { x: 0, y: 1, z: 0 }
 }: ModelViewerProps) {
   const groupRef = useRef<THREE.Group>(null)
   const directionalLightRef = useRef<THREE.DirectionalLight>(null)
+  const textRef = useRef<THREE.Mesh>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [modelBounds, setModelBounds] = useState<THREE.Box3 | null>(null)
   const { scene } = useGLTF(modelPath)
   const { camera } = useThree()
 
+  // Calculate model bounds and center it
   useEffect(() => {
     if (scene) {
       console.log('Model loaded:', scene)
-      console.log('Scene children:', scene.children)
+      
+      // Calculate bounding box
+      const box = new THREE.Box3().setFromObject(scene)
+      setModelBounds(box)
+      
+      // Center the model
+      const center = box.getCenter(new THREE.Vector3())
+      scene.position.sub(center)
+      
+      // Scale model to fit better in view
+      const size = box.getSize(new THREE.Vector3())
+      const maxSize = Math.max(size.x, size.y, size.z)
+      const targetSize = 3 // Target size in units
+      if (maxSize > 0) {
+        const scale = targetSize / maxSize
+        scene.scale.multiplyScalar(scale)
+      }
+      
+      console.log('Model centered and scaled')
       scene.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           console.log('Mesh:', child.name)
@@ -112,6 +154,11 @@ export function ModelViewer({
     if (groupRef.current && isPreviewMode) {
       groupRef.current.rotation.y += 0.005
     }
+    
+    // Make text always face camera
+    if (textRef.current && camera) {
+      textRef.current.lookAt(camera.position)
+    }
   })
 
   if (isLoading) {
@@ -121,18 +168,44 @@ export function ModelViewer({
   return (
     <>
       {/* Main scene */}
-      <group ref={groupRef}>
-        <primitive 
-          object={scene} 
-          scale={[1, 1, 1]}
-          position={[0, 0, 0]}
-          rotation={[0, 0, 0]}
-        />
-      </group>
+      <Center>
+        <group ref={groupRef}>
+          <primitive 
+            object={scene} 
+            scale={[1, 1, 1]}
+            position={[0, 0, 0]}
+            rotation={[0, 0, 0]}
+          />
+          
+          {/* 3D Text Overlay */}
+          {overlayText && (
+            <group position={[textPosition.x, textPosition.y, textPosition.z]}>
+              <Html
+                center
+                distanceFactor={10}
+                transform
+                sprite
+              >
+                <TextOverlay 
+                  text={overlayText}
+                  color={textColor}
+                  size={fontSize}
+                />
+              </Html>
+            </group>
+          )}
+        </group>
+      </Center>
 
-      {/* Basic lighting */}
-      <ambientLight intensity={1.0} />
-      <directionalLight position={[5, 5, 5]} intensity={1.0} />
+      {/* Improved lighting setup */}
+      <ambientLight intensity={0.6} />
+      <directionalLight 
+        ref={directionalLightRef}
+        position={[10, 10, 5]} 
+        intensity={1.0}
+        castShadow
+      />
+      <pointLight position={[-10, -10, -5]} intensity={0.3} />
 
       {/* Controls */}
       <OrbitControls
@@ -140,10 +213,12 @@ export function ModelViewer({
         enableDamping
         dampingFactor={0.05}
         target={[0, 0, 0]}
+        minDistance={1}
+        maxDistance={20}
       />
 
-      {/* Debug helpers */}
-      <axesHelper args={[5]} />
+      {/* Environment helpers */}
+      <gridHelper args={[10, 10]} />
     </>
   )
 }
