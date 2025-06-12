@@ -10,16 +10,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>      <body className="w-screen h-screen overflow-hidden">
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <div className="w-full h-full">
-            <SidebarProvider defaultOpen={true}>{children}</SidebarProvider>
-          </div>
-        </ThemeProvider>
-      </body>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+        <div className="w-full h-full">
+          <SidebarProvider defaultOpen={true}>{children}</SidebarProvider>
+        </div>
+      </ThemeProvider>
+    </body>
     </html>
   )
 }
 
 export const metadata = {
-      generator: 'v0.dev'
-    };
+  generator: 'v0.dev'
+};

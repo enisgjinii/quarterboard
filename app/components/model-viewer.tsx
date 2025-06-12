@@ -46,9 +46,9 @@ export function ModelViewer({
   overlayText = "",
   textColor = "#ffffff",
   fontSize = 1,
-  textPosition = { x: 0, y: 1, z: 0 },
+  textPosition = { x: 0, y: 0.5, z: 0 },
   textRotation = { x: 0, y: 0, z: 0 },
-  textScale = { x: 1, y: 1, z: 1 },
+  textScale = { x: 1.2, y: 1.2, z: 1.2 },
   text3D = "",
   text3DOptions = {},
   textMaterial = 'standard',
@@ -91,7 +91,7 @@ export function ModelViewer({
         // Scale model to fit better in view
         const size = box.getSize(new THREE.Vector3())
         const maxSize = Math.max(size.x, size.y, size.z)
-        const targetSize = Math.min(viewport.width, viewport.height) * 0.8 // 80% of viewport
+        const targetSize = Math.min(viewport.width, viewport.height) * 0.5 // 50% of viewport (was 0.8)
         if (maxSize > 0) {
           const scale = targetSize / maxSize
           newScene.scale.multiplyScalar(scale)
@@ -121,6 +121,22 @@ export function ModelViewer({
       z: center.z + zOffset
     }
   }, [modelBounds, viewport])
+
+  // Calculate position for text to be on top of the model
+  const calculateTextOnModelPosition = useCallback(() => {
+    if (!modelBounds) return { x: 0, y: 0, z: 0 };
+    const center = modelBounds.getCenter(new THREE.Vector3());
+    const box = modelBounds;
+    // Place text at center X/Z, and at the top Y of the model
+    let y = box.max.y;
+    // If engraving, move slightly into the model, else sit just above
+    y += isEngraving ? -((text3DOptions.height || 0.03) / 2) : 0.01;
+    return {
+      x: center.x,
+      y,
+      z: center.z
+    };
+  }, [modelBounds, isEngraving, text3DOptions.height]);
 
   // Update camera position based on model bounds
   useEffect(() => {
@@ -262,7 +278,9 @@ export function ModelViewer({
     return null
   }
 
-  const centerPos = calculateCenterPosition()
+  // Use new logic for text position
+  const textOnModelPos = calculateTextOnModelPosition();
+  const centerPos = calculateCenterPosition();
 
   return (
     <>      {/* Main scene */}
@@ -278,9 +296,9 @@ export function ModelViewer({
           {text3D && (
             <Text3D
               font="/fonts/helvetiker_regular.typeface.json"
-              position={[centerPos.x, centerPos.y, centerPos.z]}
+              position={[textOnModelPos.x, textOnModelPos.y, textOnModelPos.z]}
               rotation={[0, 0, 0]}
-              scale={[1, 1, 1]}
+              scale={[textScale.x, textScale.y, textScale.z]}
               size={text3DOptions.size || 0.15}
               height={text3DOptions.height || 0.03}
               curveSegments={text3DOptions.curveSegments || 12}
