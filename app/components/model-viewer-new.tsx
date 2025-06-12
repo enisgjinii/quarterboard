@@ -1,55 +1,53 @@
 "use client"
 
 import { useRef, useEffect, useMemo, useState } from "react"
-import { useGLTF, OrbitControls, Center, Text3D } from "@react-three/drei"
+import { useGLTF, OrbitControls, Center, Html } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
 
-// Create 3D text geometry
-const create3DTextGeometry = (
-  text: string,
+// Create a canvas texture with text
+const createTextTexture = (
+  text: string, 
   options: {
     fontSize?: number,
+    fontFamily?: string,
+    textColor?: string,
+    backgroundColor?: string,
+    width?: number,
     height?: number,
-    curveSegments?: number,
-    bevelEnabled?: boolean,
-    bevelThickness?: number,
-    bevelSize?: number,
-    bevelOffset?: number,
-    bevelSegments?: number
+    padding?: number
   } = {}
-): THREE.TextGeometry => {
+): THREE.CanvasTexture => {
   const {
-    fontSize = 0.5,
-    height = 0.1,
-    curveSegments = 12,
-    bevelEnabled = true,
-    bevelThickness = 0.02,
-    bevelSize = 0.01,
-    bevelOffset = 0,
-    bevelSegments = 5
+    fontSize = 64,
+    fontFamily = 'Arial, sans-serif',
+    textColor = '#ffffff',
+    backgroundColor = 'transparent',
+    width = 512,
+    height = 512,
+    padding = 20
   } = options
 
-  // Load font (we'll use a default system font for now)
-  const loader = new THREE.FontLoader()
-  
-  // For now, we'll create a simple extrude geometry as a placeholder
-  // In a real implementation, you'd load a proper font file
-  const shapes = []
-  const geometry = new THREE.TextGeometry(text, {
-    font: undefined as any, // We'll handle this differently
-    size: fontSize,
-    height: height,
-    curveSegments: curveSegments,
-    bevelEnabled: bevelEnabled,
-    bevelThickness: bevelThickness,
-    bevelSize: bevelSize,
-    bevelOffset: bevelOffset,
-    bevelSegments: bevelSegments
-  })
+  // Create canvas
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const context = canvas.getContext('2d')!
 
-  return geometry
-}
+  // Clear canvas first
+  context.clearRect(0, 0, width, height)
+
+  // Set background if not transparent
+  if (backgroundColor !== 'transparent') {
+    context.fillStyle = backgroundColor
+    context.fillRect(0, 0, width, height)
+  }
+
+  // Set text properties
+  context.fillStyle = textColor
+  context.font = `bold ${fontSize}px ${fontFamily}`
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
 
   // Add text stroke for better visibility
   context.strokeStyle = textColor === '#ffffff' ? '#000000' : '#ffffff'
@@ -95,6 +93,27 @@ const create3DTextGeometry = (
   return texture
 }
 
+// Text overlay component
+const TextOverlay = ({ text, color, size }: { text: string; color: string; size: number }) => {
+  const textRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (textRef.current) {
+      textRef.current.style.color = color
+      textRef.current.style.fontSize = `${size * 16}px`
+    }
+  }, [color, size])
+
+  return (
+    <div 
+      ref={textRef}
+      className="text-overlay-3d"
+    >
+      {text}
+    </div>
+  )
+}
+
 interface ModelViewerProps {
   modelPath: string
   color?: string
@@ -117,8 +136,8 @@ interface ModelViewerProps {
     height?: number
     padding?: number
   }
-  targetMeshName?: string | null
-  textureRepeat?: { u: number; v: number }
+  targetMeshName?: string | null // Specific mesh to apply text to, if null applies to all meshes
+  textureRepeat?: { u: number; v: number } // How many times to repeat the texture
 }
 
 export function ModelViewer({
@@ -161,7 +180,7 @@ export function ModelViewer({
       // Scale model to fit better in view
       const size = box.getSize(new THREE.Vector3())
       const maxSize = Math.max(size.x, size.y, size.z)
-      const targetSize = 3
+      const targetSize = 3 // Target size in units
       if (maxSize > 0) {
         const scale = targetSize / maxSize
         scene.scale.multiplyScalar(scale)
@@ -274,7 +293,7 @@ export function ModelViewer({
       transparent: true,
       alphaTest: 0.1,
       side: THREE.DoubleSide,
-      depthWrite: false
+      depthWrite: false // Prevents z-fighting
     })
 
     const textPlane = new THREE.Mesh(planeGeometry, planeMaterial)
@@ -334,6 +353,24 @@ export function ModelViewer({
             position={[0, 0, 0]}
             rotation={[0, 0, 0]}
           />
+          
+          {/* 3D Text Overlay */}
+          {overlayText && (
+            <group position={[textPosition.x, textPosition.y, textPosition.z]}>
+              <Html
+                center
+                distanceFactor={10}
+                transform
+                sprite
+              >
+                <TextOverlay 
+                  text={overlayText}
+                  color={textColor}
+                  size={fontSize}
+                />
+              </Html>
+            </group>
+          )}
         </group>
       </Center>
 
