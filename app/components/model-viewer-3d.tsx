@@ -1,49 +1,9 @@
 "use client"
 
 import { useRef, useEffect, useMemo, useState } from "react"
-import { useGLTF, OrbitControls, Center, Text3D } from "@react-three/drei"
+import { useGLTF, OrbitControls, Center } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
-
-// Text3D Component for real 3D text geometry
-function Text3DComponent({ 
-  text, 
-  position, 
-  rotation, 
-  scale,
-  textOptions,
-  material 
-}: {
-  text: string
-  position: [number, number, number]
-  rotation: [number, number, number]
-  scale: [number, number, number]
-  textOptions: any
-  material: THREE.Material
-}) {
-  const meshRef = useRef<THREE.Mesh>(null)
-
-  return (
-    <Text3D
-      ref={meshRef}
-      text={text}
-      font="/fonts/helvetiker_regular.typeface.json" // We'll need to add this font file
-      size={textOptions.size || 0.2}
-      height={textOptions.height || 0.05}
-      curveSegments={textOptions.curveSegments || 12}
-      bevelEnabled={textOptions.bevelEnabled || true}
-      bevelThickness={textOptions.bevelThickness || 0.01}
-      bevelSize={textOptions.bevelSize || 0.005}
-      bevelOffset={textOptions.bevelOffset || 0}
-      bevelSegments={textOptions.bevelSegments || 5}
-      position={position}
-      rotation={rotation}
-      scale={scale}
-      material={material}
-    >
-    </Text3D>
-  )
-}
 
 interface ModelViewerProps {
   modelPath: string
@@ -258,8 +218,7 @@ export function ModelViewer({
   }
 
   return (
-    <>
-      {/* Main scene */}
+    <>      {/* Main scene */}
       <Center>
         <group ref={groupRef}>
           <primitive 
@@ -267,18 +226,27 @@ export function ModelViewer({
             scale={[1, 1, 1]}
             position={[0, 0, 0]}
             rotation={[0, 0, 0]}
-          />          {/* 3D Text Geometry - Simplified for now */}
+          />
+            {/* 3D Text Geometry - Positioned relative to model center */}
           {text3D && (
             <mesh
               position={[textPosition.x, textPosition.y, textPosition.z]}
               rotation={[textRotation.x, textRotation.y, textRotation.z]}
               scale={[textScale.x, textScale.y, textScale.z]}
+              name="text3D"
             >
-              <boxGeometry args={[text3D.length * 0.15, 0.2, 0.05]} />
+              <boxGeometry args={[Math.max(text3D.length * 0.1, 0.3), 0.15, 0.03]} />
               <meshStandardMaterial 
                 color={textColor}
-                {...(textMaterial === 'emissive' && { emissive: textColor, emissiveIntensity: 0.3 })}
-                {...(textMaterial === 'engraved' && { metalness: 0.8, roughness: 0.2 })}
+                {...(textMaterial === 'emissive' && { 
+                  emissive: textColor, 
+                  emissiveIntensity: 0.3 
+                })}
+                {...(textMaterial === 'engraved' && { 
+                  metalness: 0.8, 
+                  roughness: 0.2,
+                  color: new THREE.Color(textColor).multiplyScalar(0.6)
+                })}
               />
             </mesh>
           )}

@@ -419,32 +419,47 @@ export function AppSidebar({
                         )}
                       </div>
                     </div>
-                  )}
-
-                  {/* Quick Actions */}
-                  <div>
-                    <Label className="text-sm font-medium mb-2 block">Quick Actions</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setTextPosition({ x: 0, y: 0.5, z: 0.1 })
-                          setTextRotation({ x: 0, y: 0, z: 0 })
-                          setTextScale({ x: 1, y: 1, z: 1 })
-                        }}
-                      >
-                        Reset Position
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setText3D("")}
-                      >
-                        Clear Text
-                      </Button>
+                  )}                    {/* Quick Actions */}
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">Quick Actions</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setTextPosition({ x: 0, y: 0, z: 0.2 })
+                            setTextRotation({ x: 0, y: 0, z: 0 })
+                            setTextScale({ x: 1, y: 1, z: 1 })
+                          }}
+                        >
+                          Center Text
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setText3D("")}
+                        >
+                          Clear Text
+                        </Button>
+                      </div>
+                      <div className="mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            setText3D("SAMPLE")
+                            setTextPosition({ x: 0, y: 0, z: 0.2 })
+                            setTextRotation({ x: 0, y: 0, z: 0 })
+                            setTextScale({ x: 1, y: 1, z: 1 })
+                            setTextColor("#ff0000")
+                            setTextMaterial('standard')
+                          }}
+                        >
+                          Reset All
+                        </Button>
+                      </div>
                     </div>
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

@@ -36,13 +36,13 @@ export default function Component() {
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [showTextDemo, setShowTextDemo] = useState(false)
   
-  // 3D Text states
+  // 3D Text states - Centered at origin by default
   const [overlayText, setOverlayText] = useState("")
   const [materialText, setMaterialText] = useState("")
   const [text3D, setText3D] = useState("SAMPLE")
-  const [textColor, setTextColor] = useState("#ffffff")
+  const [textColor, setTextColor] = useState("#ff0000")
   const [fontSize, setFontSize] = useState(1)
-  const [textPosition, setTextPosition] = useState({ x: 0, y: 0.5, z: 0.1 })
+  const [textPosition, setTextPosition] = useState({ x: 0, y: 0, z: 0.2 }) // Slightly above the model surface
   const [textRotation, setTextRotation] = useState({ x: 0, y: 0, z: 0 })
   const [textScale, setTextScale] = useState({ x: 1, y: 1, z: 1 })
   const [text3DOptions, setText3DOptions] = useState({
@@ -111,13 +111,54 @@ export default function Component() {
     setIsEngraving
   }
 
+  if (!mounted) {
+    return null
+  }
+
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      <div className="w-80 bg-background border-r flex-shrink-0">
+    <div className="h-screen flex">
+      {/* Left Sidebar */}
+      <div className="w-80 border-r bg-background">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <Type className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="font-semibold text-sm">3D Editor</h1>
+              <p className="text-xs text-muted-foreground">Model Customization</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          >
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+        </div>
         <AppSidebar {...sidebarProps} />
       </div>
+
+      {/* Main Viewport */}
       <div className="flex-1 relative">
-        <div className="absolute inset-0">
+        {showTextDemo && (
+          <div className="absolute top-4 right-4 z-10">
+            <Button
+              variant="outline"
+              onClick={() => setShowTextDemo(false)}
+              className="text-xs"
+            >
+              Close Demo
+            </Button>
+          </div>
+        )}
+
+        {showTextDemo ? (
+          <ModelViewerDemo />
+        ) : (
           <Canvas 
             camera={{ 
               position: [0, 0, 5],
@@ -152,20 +193,7 @@ export default function Component() {
               />
             </Suspense>
           </Canvas>
-        </div>
-        <div className="absolute top-4 right-4 z-10">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          >
-            {mounted && theme === "dark" ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
+        )}
       </div>
     </div>
   )

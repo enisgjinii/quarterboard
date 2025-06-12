@@ -1,99 +1,9 @@
 "use client"
 
 import { useRef, useEffect, useMemo, useState } from "react"
-import { useGLTF, OrbitControls, Center, Text3D } from "@react-three/drei"
+import { useGLTF, OrbitControls, Center } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
-
-// Create 3D text geometry
-const create3DTextGeometry = (
-  text: string,
-  options: {
-    fontSize?: number,
-    height?: number,
-    curveSegments?: number,
-    bevelEnabled?: boolean,
-    bevelThickness?: number,
-    bevelSize?: number,
-    bevelOffset?: number,
-    bevelSegments?: number
-  } = {}
-): THREE.TextGeometry => {
-  const {
-    fontSize = 0.5,
-    height = 0.1,
-    curveSegments = 12,
-    bevelEnabled = true,
-    bevelThickness = 0.02,
-    bevelSize = 0.01,
-    bevelOffset = 0,
-    bevelSegments = 5
-  } = options
-
-  // Load font (we'll use a default system font for now)
-  const loader = new THREE.FontLoader()
-  
-  // For now, we'll create a simple extrude geometry as a placeholder
-  // In a real implementation, you'd load a proper font file
-  const shapes = []
-  const geometry = new THREE.TextGeometry(text, {
-    font: undefined as any, // We'll handle this differently
-    size: fontSize,
-    height: height,
-    curveSegments: curveSegments,
-    bevelEnabled: bevelEnabled,
-    bevelThickness: bevelThickness,
-    bevelSize: bevelSize,
-    bevelOffset: bevelOffset,
-    bevelSegments: bevelSegments
-  })
-
-  return geometry
-}
-
-  // Add text stroke for better visibility
-  context.strokeStyle = textColor === '#ffffff' ? '#000000' : '#ffffff'
-  context.lineWidth = 3
-
-  // Handle line wrapping
-  const words = text.split(' ')
-  const lines: string[] = []
-  let currentLine = ''
-  const maxWidth = width - (padding * 2)
-
-  for (const word of words) {
-    const testLine = currentLine + (currentLine ? ' ' : '') + word
-    const metrics = context.measureText(testLine)
-    
-    if (metrics.width > maxWidth && currentLine) {
-      lines.push(currentLine)
-      currentLine = word
-    } else {
-      currentLine = testLine
-    }
-  }
-  if (currentLine) {
-    lines.push(currentLine)
-  }
-
-  // Draw text lines with stroke and fill
-  const lineHeight = fontSize * 1.2
-  const totalHeight = lines.length * lineHeight
-  const startY = (height - totalHeight) / 2 + fontSize / 2
-
-  lines.forEach((line, index) => {
-    const y = startY + (index * lineHeight)
-    // Draw stroke first for outline effect
-    context.strokeText(line, width / 2, y)
-    // Then draw fill
-    context.fillText(line, width / 2, y)
-  })
-
-  // Create and return texture
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.needsUpdate = true
-  return texture
-}
 
 interface ModelViewerProps {
   modelPath: string
@@ -106,19 +16,23 @@ interface ModelViewerProps {
   textColor?: string
   fontSize?: number
   textPosition?: { x: number; y: number; z: number }
-  // New props for direct material text application
-  materialText?: string
-  materialTextOptions?: {
-    fontSize?: number
-    fontFamily?: string
-    textColor?: string
-    backgroundColor?: string
-    width?: number
+  textRotation?: { x: number; y: number; z: number }
+  textScale?: { x: number; y: number; z: number }
+  // 3D text specific props
+  text3D?: string
+  text3DOptions?: {
+    size?: number
     height?: number
-    padding?: number
+    curveSegments?: number
+    bevelEnabled?: boolean
+    bevelThickness?: number
+    bevelSize?: number
+    bevelOffset?: number
+    bevelSegments?: number
   }
-  targetMeshName?: string | null
-  textureRepeat?: { u: number; v: number }
+  textMaterial?: 'standard' | 'emissive' | 'engraved'
+  engraveDepth?: number
+  isEngraving?: boolean
 }
 
 export function ModelViewer({
@@ -132,16 +46,20 @@ export function ModelViewer({
   textColor = "#ffffff",
   fontSize = 1,
   textPosition = { x: 0, y: 1, z: 0 },
-  materialText = "",
-  materialTextOptions = {},
-  targetMeshName = null,
-  textureRepeat = { u: 1, v: 1 }
+  textRotation = { x: 0, y: 0, z: 0 },
+  textScale = { x: 1, y: 1, z: 1 },
+  text3D = "",
+  text3DOptions = {},
+  textMaterial = 'standard',
+  engraveDepth = 0.02,
+  isEngraving = false
 }: ModelViewerProps) {
   const groupRef = useRef<THREE.Group>(null)
   const directionalLightRef = useRef<THREE.DirectionalLight>(null)
-  const textPlaneRef = useRef<THREE.Mesh>(null)
+  const text3DRef = useRef<THREE.Mesh>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [modelBounds, setModelBounds] = useState<THREE.Box3 | null>(null)
+  const [originalModelGeometry, setOriginalModelGeometry] = useState<THREE.BufferGeometry | null>(null)
   const { scene } = useGLTF(modelPath)
   const { camera } = useThree()
 
@@ -149,6 +67,13 @@ export function ModelViewer({
   useEffect(() => {
     if (scene) {
       console.log('Model loaded:', scene)
+      
+      // Store original geometry for engraving operations
+      scene.traverse((child) => {
+        if (child instanceof THREE.Mesh && !originalModelGeometry) {
+          setOriginalModelGeometry(child.geometry.clone())
+        }
+      })
       
       // Calculate bounding box
       const box = new THREE.Box3().setFromObject(scene)
@@ -193,7 +118,7 @@ export function ModelViewer({
     if (!scene) return;
     
     scene.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
+      if (child instanceof THREE.Mesh && child.name !== 'text3D') {
         const material = child.material
         if (Array.isArray(material)) {
           material.forEach(m => {
@@ -228,94 +153,63 @@ export function ModelViewer({
     }
   }, [selectedMaterial, materialPreview, scene])
 
-  // Create positioned text plane for material text
+  // Create 3D text material
+  const text3DMaterial = useMemo(() => {
+    const baseColor = new THREE.Color(textColor)
+    
+    switch (textMaterial) {
+      case 'emissive':
+        return new THREE.MeshStandardMaterial({
+          color: baseColor,
+          emissive: baseColor,
+          emissiveIntensity: 0.3,
+          metalness: 0.1,
+          roughness: 0.3
+        })
+      case 'engraved':
+        return new THREE.MeshStandardMaterial({
+          color: baseColor.multiplyScalar(0.6), // Darker for engraved effect
+          metalness: 0.8,
+          roughness: 0.2
+        })
+      default:
+        return new THREE.MeshStandardMaterial({
+          color: baseColor,
+          metalness: 0.1,
+          roughness: 0.3
+        })
+    }
+  }, [textColor, textMaterial])
+
+  // Engraving effect using CSG (Constructive Solid Geometry)
   useEffect(() => {
-    if (!scene || !materialText) {
-      // Remove existing text plane if materialText is empty
-      const existingTextPlane = scene.getObjectByName('materialTextPlane')
-      if (existingTextPlane) {
-        scene.remove(existingTextPlane)
-        if (existingTextPlane instanceof THREE.Mesh) {
-          if (existingTextPlane.material instanceof THREE.Material) {
-            existingTextPlane.material.dispose()
-          }
-          existingTextPlane.geometry.dispose()
-        }
+    if (!scene || !text3D || !isEngraving || !originalModelGeometry) return;
+
+    console.log('Applying engraving effect...')
+    
+    // This is a simplified approach - in a real implementation you'd use a CSG library
+    // For now, we'll simulate engraving by adjusting the text position and material
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.name === 'text3D') {
+        // Move text slightly into the model surface
+        child.position.z -= engraveDepth
+        
+        // Apply engraved material
+        child.material = new THREE.MeshStandardMaterial({
+          color: materialColor.clone().multiplyScalar(0.4),
+          metalness: 0.9,
+          roughness: 0.1,
+          transparent: true,
+          opacity: 0.8
+        })
       }
-      return;
-    }
-
-    console.log('Creating positioned text plane:', materialText)
-
-    // Remove any existing text plane
-    const existingTextPlane = scene.getObjectByName('materialTextPlane')
-    if (existingTextPlane) {
-      scene.remove(existingTextPlane)
-      if (existingTextPlane instanceof THREE.Mesh) {
-        if (existingTextPlane.material instanceof THREE.Material) {
-          existingTextPlane.material.dispose()
-        }
-        existingTextPlane.geometry.dispose()
-      }
-    }
-
-    // Create text texture
-    const textTexture = createTextTexture(materialText, {
-      ...materialTextOptions,
-      backgroundColor: 'transparent'
     })
-
-    // Create a plane geometry for the text
-    const planeWidth = 2
-    const planeHeight = 1
-    const planeGeometry = new THREE.PlaneGeometry(planeWidth, planeHeight)
-    const planeMaterial = new THREE.MeshBasicMaterial({
-      map: textTexture,
-      transparent: true,
-      alphaTest: 0.1,
-      side: THREE.DoubleSide,
-      depthWrite: false
-    })
-
-    const textPlane = new THREE.Mesh(planeGeometry, planeMaterial)
-    textPlane.name = 'materialTextPlane'
-    
-    // Position the text plane based on textPosition
-    textPlane.position.set(textPosition.x, textPosition.y, textPosition.z)
-    
-    // Store reference for animation
-    textPlaneRef.current = textPlane
-    
-    scene.add(textPlane)
-    
-    console.log('Text plane created and positioned at:', textPosition)
-
-    // Cleanup function
-    return () => {
-      console.log('Cleaning up text plane')
-      const textPlaneToRemove = scene.getObjectByName('materialTextPlane')
-      if (textPlaneToRemove) {
-        scene.remove(textPlaneToRemove)
-        if (textPlaneToRemove instanceof THREE.Mesh) {
-          if (textPlaneToRemove.material instanceof THREE.Material) {
-            textPlaneToRemove.material.dispose()
-          }
-          textPlaneToRemove.geometry.dispose()
-        }
-      }
-      textPlaneRef.current = null
-    }
-  }, [scene, materialText, materialTextOptions, textPosition])
+  }, [scene, text3D, isEngraving, engraveDepth, materialColor, originalModelGeometry])
 
   // Animation loop
   useFrame(() => {
     if (groupRef.current && isPreviewMode) {
       groupRef.current.rotation.y += 0.005
-    }
-    
-    // Make text plane always face camera
-    if (textPlaneRef.current && camera) {
-      textPlaneRef.current.lookAt(camera.position)
     }
   })
 
@@ -324,8 +218,7 @@ export function ModelViewer({
   }
 
   return (
-    <>
-      {/* Main scene */}
+    <>      {/* Main scene */}
       <Center>
         <group ref={groupRef}>
           <primitive 
@@ -334,6 +227,29 @@ export function ModelViewer({
             position={[0, 0, 0]}
             rotation={[0, 0, 0]}
           />
+            {/* 3D Text Geometry - Positioned relative to model center */}
+          {text3D && (
+            <mesh
+              position={[textPosition.x, textPosition.y, textPosition.z]}
+              rotation={[textRotation.x, textRotation.y, textRotation.z]}
+              scale={[textScale.x, textScale.y, textScale.z]}
+              name="text3D"
+            >
+              <boxGeometry args={[Math.max(text3D.length * 0.1, 0.3), 0.15, 0.03]} />
+              <meshStandardMaterial 
+                color={textColor}
+                {...(textMaterial === 'emissive' && { 
+                  emissive: textColor, 
+                  emissiveIntensity: 0.3 
+                })}
+                {...(textMaterial === 'engraved' && { 
+                  metalness: 0.8, 
+                  roughness: 0.2,
+                  color: new THREE.Color(textColor).multiplyScalar(0.6)
+                })}
+              />
+            </mesh>
+          )}
         </group>
       </Center>
 
