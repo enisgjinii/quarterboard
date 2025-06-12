@@ -1,7 +1,7 @@
 "use client"
 
 import type * as React from "react"
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import {
   Sidebar,
   SidebarContent,
@@ -21,6 +21,29 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Upload, ImageIcon, Download, Palette, Type, Layers, Info, Settings } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
+import { Slider } from "@/components/ui/slider"
+import TextTextureGenerator from "./text-texture-generator"
+
+type UVMapSettings = {
+  resolution: number
+  showWireframe: boolean
+  showTexture: boolean
+  backgroundColor: string
+  lineColor: string
+}
+
+interface MeshInfo {
+  name: string
+  vertices: number
+  faces: number
+  materials: string[]
+  uvSets: string[]
+}
 
 interface AppSidebarProps {
   modelUrl: string
@@ -35,6 +58,10 @@ interface AppSidebarProps {
   setSignName: (name: string) => void
   uvMapUrl: string | null
   modelLoaded: boolean
+  uvMapSettings: UVMapSettings
+  setUvMapSettings: (settings: UVMapSettings) => void
+  meshInfo?: MeshInfo[]
+  onTextTextureGenerated: (textureUrl: string) => void
 }
 
 export function AppSidebar({
@@ -50,9 +77,16 @@ export function AppSidebar({
   setSignName,
   uvMapUrl,
   modelLoaded,
+  uvMapSettings,
+  setUvMapSettings,
+  meshInfo,
+  onTextTextureGenerated,
 }: AppSidebarProps) {
   const modelFileRef = useRef<HTMLInputElement>(null)
   const textureFileRef = useRef<HTMLInputElement>(null)
+  const [activeTab, setActiveTab] = useState("model")
+  const [textColor, setTextColor] = useState("#000000")
+  const [textBackgroundColor, setTextBackgroundColor] = useState("#ffffff")
 
   const handleModelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -115,214 +149,255 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Model Configuration */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center gap-2">
-            <Settings className="size-4" />
-            Model Configuration
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="model">Model</TabsTrigger>
+            <TabsTrigger value="texture">Texture</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="model" className="space-y-4">
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  3D Model
-                  <Badge variant={modelLoaded ? "default" : "secondary"} className="text-xs">
-                    {modelLoaded ? "Loaded" : "Loading"}
-                  </Badge>
-                </CardTitle>
+              <CardHeader>
+                <CardTitle>Model Upload</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="model-upload" className="text-xs font-medium">
-                    Upload Model (.glb)
-                  </Label>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => modelFileRef.current?.click()}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                    >
-                      <Upload className="size-3 mr-2" />
-                      Choose File
-                    </Button>
-                    <Input
-                      id="model-upload"
-                      type="file"
-                      accept=".glb"
-                      ref={modelFileRef}
-                      onChange={handleModelUpload}
-                      className="hidden"
-                    />
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid w-full max-w-sm items-center gap-1.5">
+                    <Label htmlFor="model-upload">Upload Model</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="model-upload"
+                        type="file"
+                        accept=".glb,.gltf"
+                        onChange={handleModelUpload}
+                      />
+                      <Button variant="outline" size="icon">
+                        <Upload className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                <Button
-                  onClick={() => setModelUrl("/models/object.glb")}
-                  variant="secondary"
-                  size="sm"
-                  className="w-full"
-                >
-                  Use Default Model
-                </Button>
-              </CardContent>
-            </Card>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Sign Properties */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center gap-2">
-            <Type className="size-4" />
-            Sign Properties
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="sign-name" className="text-xs font-medium">
-                    Sign Name
-                  </Label>
-                  <Input
-                    id="sign-name"
-                    value={signName}
-                    onChange={(e) => setSignName(e.target.value)}
-                    placeholder="Enter sign name..."
-                    className="h-8"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sign-style" className="text-xs font-medium">
-                    Sign Style
-                  </Label>
-                  <Input
-                    id="sign-style"
-                    value={signStyle}
-                    onChange={(e) => setSignStyle(e.target.value)}
-                    placeholder="Enter style..."
-                    className="h-8"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Appearance */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center gap-2">
-            <Palette className="size-4" />
-            Appearance
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                {/* Color Selection */}
-                <div className="space-y-3">
-                  <Label className="text-xs font-medium">Model Color</Label>
-                  <div className="flex gap-2 items-center">
+                  <Separator />
+                  <div className="grid w-full max-w-sm items-center gap-1.5">
+                    <Label htmlFor="model-color">Model Color</Label>
                     <Input
+                      id="model-color"
                       type="color"
                       value={modelColor}
                       onChange={(e) => setModelColor(e.target.value)}
-                      className="w-12 h-8 p-1 border rounded"
-                    />
-                    <Input
-                      type="text"
-                      value={modelColor}
-                      onChange={(e) => setModelColor(e.target.value)}
-                      className="flex-1 h-8 font-mono text-xs"
-                      placeholder="#D4A574"
                     />
                   </div>
-                  <div className="grid grid-cols-6 gap-1">
-                    {colorPresets.map((color) => (
-                      <Button
-                        key={color}
-                        onClick={() => setModelColor(color)}
-                        className="w-full h-6 p-0 border rounded hover:scale-105 transition-transform"
-                        style={{ backgroundColor: color }}
-                        variant="outline"
-                        size="sm"
-                      />
+                </div>
+              </CardContent>
+            </Card>
+
+            {modelLoaded && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Model Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {meshInfo?.map((mesh, index) => (
+                      <div key={index} className="text-sm">
+                        <div className="font-medium">{mesh.name}</div>
+                        <div className="text-muted-foreground">
+                          Vertices: {mesh.vertices.toLocaleString()}
+                        </div>
+                        <div className="text-muted-foreground">
+                          Faces: {mesh.faces.toLocaleString()}
+                        </div>
+                        <div className="text-muted-foreground">
+                          Materials: {mesh.materials.join(", ")}
+                        </div>
+                        <div className="text-muted-foreground">
+                          UV Sets: {mesh.uvSets.join(", ")}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
 
-                {/* Texture Upload */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium">Texture</Label>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => textureFileRef.current?.click()}
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                    >
-                      <ImageIcon className="size-3 mr-2" />
-                      Upload
-                    </Button>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      ref={textureFileRef}
-                      onChange={handleTextureUpload}
-                      className="hidden"
-                    />
-                  </div>
-                  {textureUrl && (
-                    <div className="space-y-2">
-                      <img
-                        src={textureUrl || "/placeholder.svg"}
-                        alt="Texture preview"
-                        className="w-full h-16 object-cover rounded border"
+          <TabsContent value="texture" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Texture Options</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid w-full max-w-sm items-center gap-1.5">
+                    <Label htmlFor="texture-upload">Upload Texture</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="texture-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleTextureUpload}
                       />
-                      <Button
-                        onClick={() => setTextureUrl(null)}
-                        variant="destructive"
-                        size="sm"
-                        className="w-full h-7 text-xs"
-                      >
-                        Remove Texture
+                      <Button variant="outline" size="icon">
+                        <ImageIcon className="h-4 w-4" />
                       </Button>
                     </div>
-                  )}
+                  </div>
+                  <Separator />
+                  <div className="space-y-4">
+                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                      <Label htmlFor="sign-name">Sign Name</Label>
+                      <Input
+                        id="sign-name"
+                        value={signName}
+                        onChange={(e) => setSignName(e.target.value)}
+                        placeholder="Enter sign name"
+                      />
+                    </div>
+                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                      <Label htmlFor="sign-style">Sign Style</Label>
+                      <Select value={signStyle} onValueChange={setSignStyle}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select style" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Modern">Modern</SelectItem>
+                          <SelectItem value="Classic">Classic</SelectItem>
+                          <SelectItem value="Handwritten">Handwritten</SelectItem>
+                          <SelectItem value="Industrial">Industrial</SelectItem>
+                          <SelectItem value="Minimal">Minimal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                      <Label htmlFor="text-color">Text Color</Label>
+                      <Input
+                        id="text-color"
+                        type="color"
+                        value={textColor}
+                        onChange={(e) => setTextColor(e.target.value)}
+                      />
+                    </div>
+                    <div className="grid w-full max-w-sm items-center gap-1.5">
+                      <Label htmlFor="text-background">Background Color</Label>
+                      <Input
+                        id="text-background"
+                        type="color"
+                        value={textBackgroundColor}
+                        onChange={(e) => setTextBackgroundColor(e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          </SidebarGroupContent>
-        </SidebarGroup>
 
-        {/* UV Mapping */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center gap-2">
-            <Layers className="size-4" />
-            UV Mapping
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
+            <TextTextureGenerator
+              text={signName}
+              style={signStyle}
+              color={textColor}
+              backgroundColor={textBackgroundColor}
+              onTextureGenerated={onTextTextureGenerated}
+            />
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-4">
             <Card>
-              <CardContent className="pt-6">
-                {uvMapUrl ? (
-                  <div className="space-y-3">
-                    <img
-                      src={uvMapUrl || "/placeholder.svg"}
-                      alt="UV Map"
-                      className="w-full aspect-square object-cover rounded border"
+              <CardHeader>
+                <CardTitle>UV Map Settings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid w-full max-w-sm items-center gap-1.5">
+                    <Label htmlFor="resolution">Resolution</Label>
+                    <Slider
+                      id="resolution"
+                      min={512}
+                      max={4096}
+                      step={512}
+                      value={[uvMapSettings.resolution]}
+                      onValueChange={([value]) =>
+                        setUvMapSettings({ ...uvMapSettings, resolution: value })
+                      }
                     />
-                    <Button onClick={downloadUVMap} variant="outline" size="sm" className="w-full">
-                      <Download className="size-3 mr-2" />
-                      Download UV Map
-                    </Button>
+                    <div className="text-sm text-muted-foreground">
+                      {uvMapSettings.resolution}x{uvMapSettings.resolution}
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Layers className="size-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-xs">UV map will appear here</p>
+                  <div className="grid w-full max-w-sm items-center gap-1.5">
+                    <Label htmlFor="wireframe">Show Wireframe</Label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="wireframe"
+                        checked={uvMapSettings.showWireframe}
+                        onChange={(e) =>
+                          setUvMapSettings({
+                            ...uvMapSettings,
+                            showWireframe: e.target.checked,
+                          })
+                        }
+                        aria-label="Show wireframe overlay"
+                        title="Show wireframe overlay"
+                      />
+                      <Label htmlFor="wireframe" className="text-sm">
+                        Enable wireframe overlay
+                      </Label>
+                    </div>
                   </div>
-                )}
+                  <div className="grid w-full max-w-sm items-center gap-1.5">
+                    <Label htmlFor="texture">Show Texture</Label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="texture"
+                        checked={uvMapSettings.showTexture}
+                        onChange={(e) =>
+                          setUvMapSettings({
+                            ...uvMapSettings,
+                            showTexture: e.target.checked,
+                          })
+                        }
+                        aria-label="Show texture preview"
+                        title="Show texture preview"
+                      />
+                      <Label htmlFor="texture" className="text-sm">
+                        Show texture preview
+                      </Label>
+                    </div>
+                  </div>
+                  <div className="grid w-full max-w-sm items-center gap-1.5">
+                    <Label htmlFor="bg-color">Background Color</Label>
+                    <Input
+                      id="bg-color"
+                      type="color"
+                      value={uvMapSettings.backgroundColor}
+                      onChange={(e) =>
+                        setUvMapSettings({
+                          ...uvMapSettings,
+                          backgroundColor: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="grid w-full max-w-sm items-center gap-1.5">
+                    <Label htmlFor="line-color">Line Color</Label>
+                    <Input
+                      id="line-color"
+                      type="color"
+                      value={uvMapSettings.lineColor}
+                      onChange={(e) =>
+                        setUvMapSettings({
+                          ...uvMapSettings,
+                          lineColor: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          </SidebarGroupContent>
-        </SidebarGroup>
+          </TabsContent>
+        </Tabs>
       </SidebarContent>
 
       <SidebarFooter>

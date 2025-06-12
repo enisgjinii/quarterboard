@@ -1,16 +1,23 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { Canvas } from "@react-three/fiber"
-import { OrbitControls, Environment, Html } from "@react-three/drei"
+import { OrbitControls, Environment, Html, PerspectiveCamera } from "@react-three/drei"
 import { AppSidebar } from "./components/app-sidebar"
-import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import ModelViewer from "./components/model-viewer"
 import UVMapExtractor from "./components/uv-map-extractor"
+import TextTextureGenerator from "./components/text-texture-generator"
+
+interface MeshInfo {
+  name: string
+  vertices: number
+  faces: number
+  materials: string[]
+  uvSets: string[]
+}
 
 export default function Component() {
   const [modelUrl, setModelUrl] = useState("/models/object.glb")
@@ -20,8 +27,25 @@ export default function Component() {
   const [signName, setSignName] = useState("Custom Sign")
   const [uvMapUrl, setUvMapUrl] = useState<string | null>(null)
   const [modelLoaded, setModelLoaded] = useState(false)
+  const [meshInfo, setMeshInfo] = useState<MeshInfo[]>([])
+  const [mounted, setMounted] = useState(false)
+  const [uvMapSettings, setUvMapSettings] = useState({
+    resolution: 2048,
+    showWireframe: true,
+    showTexture: true,
+    backgroundColor: "#ffffff",
+    lineColor: "#000000",
+  })
 
   const { theme, setTheme } = useTheme()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const handleTextTextureGenerated = (textureUrl: string) => {
+    setTextureUrl(textureUrl)
+  }
 
   const sidebarProps = {
     modelUrl,
@@ -36,93 +60,96 @@ export default function Component() {
     setSignName,
     uvMapUrl,
     modelLoaded,
+    uvMapSettings,
+    setUvMapSettings,
+    meshInfo,
+    onTextTextureGenerated: handleTextTextureGenerated,
   }
 
   return (
-    <>
-      <AppSidebar {...sidebarProps} />
-      <SidebarInset>
-        {/* Header */}
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <div className="flex flex-1 items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold">3D Model Customizer</h1>
-              <span className="text-sm text-muted-foreground">
-                {signName} - {signStyle}
-              </span>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
-              <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              <span className="sr-only">Toggle theme</span>
-            </Button>
-          </div>
-        </header>
-
-        {/* 3D Viewer */}
-        <div className="flex-1 relative bg-gradient-to-br from-background to-muted/20">
-          <Canvas
-            camera={{
-              position: [5, 5, 5],
-              fov: 50,
-              near: 0.1,
-              far: 1000,
-            }}
-            className="w-full h-full"
+    <div className="flex h-screen w-full overflow-hidden">
+      <div className="w-64 bg-background border-r flex-shrink-0">
+        <AppSidebar {...sidebarProps} />
+      </div>
+      <div className="flex-1 relative bg-gradient-to-br from-background to-muted/20 w-full overflow-hidden">
+        <Canvas
+          className="w-full h-full"
+          style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0 }}
+          dpr={[1, 2]}
+          shadows
+        >
+          <PerspectiveCamera
+            makeDefault
+            position={[0, 0, 5]}
+            fov={45}
+            near={0.1}
+            far={1000}
+          />
+          <Suspense
+            fallback={
+              <Html center>
+                <div className="flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm rounded-lg border shadow-lg">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
+                  <span className="text-foreground font-medium">Loading 3D model...</span>
+                </div>
+              </Html>
+            }
           >
-            <Suspense
-              fallback={
-                <Html center>
-                  <div className="flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm rounded-lg border shadow-lg">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
-                    <span className="text-foreground font-medium">Loading 3D model...</span>
-                  </div>
-                </Html>
-              }
-            >
-              <ModelViewer
-                modelUrl={modelUrl}
-                textureUrl={textureUrl}
-                color={modelColor}
-                onModelLoaded={setModelLoaded}
-              />
-              <UVMapExtractor modelUrl={modelUrl} onUVMapExtracted={setUvMapUrl} />
-              <OrbitControls
-                enablePan={true}
-                enableZoom={true}
-                enableRotate={true}
-                maxDistance={20}
-                minDistance={1}
-                target={[0, 0, 0]}
-              />
-              <Environment preset="city" />
-              <ambientLight intensity={0.6} />
-              <directionalLight
-                position={[10, 10, 5]}
-                intensity={1}
-                castShadow
-                shadow-mapSize-width={2048}
-                shadow-mapSize-height={2048}
-              />
-              <pointLight position={[-10, -10, -5]} intensity={0.4} />
-              <hemisphereLight args={["#ffffff", "#444444"]} intensity={0.8} />
-            </Suspense>
-          </Canvas>
+            <ModelViewer
+              modelUrl={modelUrl}
+              textureUrl={textureUrl}
+              color={modelColor}
+              onModelLoaded={setModelLoaded}
+            />
+            <UVMapExtractor
+              modelUrl={modelUrl}
+              onUVMapExtracted={setUvMapUrl}
+              resolution={uvMapSettings.resolution}
+              showWireframe={uvMapSettings.showWireframe}
+              showTexture={uvMapSettings.showTexture}
+              backgroundColor={uvMapSettings.backgroundColor}
+              lineColor={uvMapSettings.lineColor}
+              onMeshInfoExtracted={setMeshInfo}
+            />
+            <OrbitControls
+              enablePan={true}
+              enableZoom={true}
+              enableRotate={true}
+              maxDistance={10}
+              minDistance={2}
+              target={[0, 0, 0]}
+              makeDefault
+            />
+            <Environment preset="studio" />
+            
+            <directionalLight
+              position={[5, 5, 5]}
+              intensity={1}
+              castShadow
+              shadow-mapSize-width={2048}
+              shadow-mapSize-height={2048}
+            />
+            <directionalLight
+              position={[-5, 5, -5]}
+              intensity={0.5}
+              castShadow
+            />
+            <pointLight position={[0, 5, 0]} intensity={0.5} />
+            <ambientLight intensity={0.5} />
+          </Suspense>
+        </Canvas>
 
-          {/* Model Status Overlay */}
-          <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur-sm rounded-lg border p-3 shadow-lg">
-            <div className="text-xs space-y-1">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${modelLoaded ? "bg-green-500" : "bg-yellow-500"}`} />
-                <span className="text-muted-foreground">{modelLoaded ? "Model Loaded" : "Loading Model..."}</span>
-              </div>
-              <div className="text-muted-foreground">Use mouse to rotate, zoom, and pan</div>
-            </div>
-          </div>
+        {/* Theme Toggle */}
+        <div className="absolute top-4 right-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            {mounted && theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </Button>
         </div>
-      </SidebarInset>
-    </>
+      </div>
+    </div>
   )
 }
