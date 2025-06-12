@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useEffect, useMemo, useState } from "react"
-import { useGLTF, OrbitControls, Center, Text3D } from "@react-three/drei"
+import { useGLTF, OrbitControls, Center, Text3D, Text } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
 
@@ -97,6 +97,27 @@ export function ModelViewer({
       onModelLoad?.(scene)
     }
   }, [scene, onModelLoad])
+
+  // Adjust text position based on model size
+  useEffect(() => {
+    if (scene) {
+      const box = new THREE.Box3().setFromObject(scene);
+      const center = box.getCenter(new THREE.Vector3());
+      scene.position.sub(center);
+
+      const size = box.getSize(new THREE.Vector3());
+      const maxSize = Math.max(size.x, size.y, size.z);
+      const targetSize = 3;
+      if (maxSize > 0) {
+        const scale = targetSize / maxSize;
+        scene.scale.multiplyScalar(scale);
+      }
+
+      textPosition.x = 0;
+      textPosition.y = size.y / 2 + 0.5; // Adjust text above the model
+      textPosition.z = 0;
+    }
+  }, [scene])
 
   // Setup shadows
   useEffect(() => {
@@ -252,6 +273,19 @@ export function ModelViewer({
                 roughness={textMaterial === 'engraved' ? 0.2 : 0.3}
               />
             </Text3D>
+          )}
+          {overlayText && (
+            <Text
+              position={[textPosition.x, textPosition.y, textPosition.z]}
+              rotation={[textRotation.x, textRotation.y, textRotation.z]}
+              scale={[textScale.x, textScale.y, textScale.z]}
+              fontSize={fontSize}
+              color={textColor}
+              anchorX="center"
+              anchorY="middle"
+            >
+              {overlayText}
+            </Text>
           )}
         </group>
       </Center>
