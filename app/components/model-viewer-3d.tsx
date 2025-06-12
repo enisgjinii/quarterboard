@@ -81,16 +81,17 @@ export function ModelViewer({
       
       // Center the model
       const center = box.getCenter(new THREE.Vector3())
-      scene.position.sub(center)
-      
-      // Scale model to fit better in view
+      scene.position.sub(center)      // Scale model to fit better in view
       const size = box.getSize(new THREE.Vector3())
       const maxSize = Math.max(size.x, size.y, size.z)
-      const targetSize = 3
+      const targetSize = 2.0 // Consistent with model-viewer.tsx
       if (maxSize > 0) {
         const scale = targetSize / maxSize
         scene.scale.multiplyScalar(scale)
       }
+      
+      // Ensure model is upright (quarterboard should stand vertically)
+      scene.rotation.set(0, 0, 0)
       
       console.log('Model centered and scaled')
       setIsLoading(false)

@@ -42,12 +42,12 @@ export default function Component() {
   const [text3D, setText3D] = useState("SAMPLE")
   const [textColor, setTextColor] = useState("#ff0000")
   const [fontSize, setFontSize] = useState(1)
-  const [textPosition, setTextPosition] = useState({ x: 0, y: 0, z: 0.2 }) // Slightly above the model surface
+  const [textPosition, setTextPosition] = useState({ x: 0, y: 1, z: 0 }) // Position text above the model
   const [textRotation, setTextRotation] = useState({ x: 0, y: 0, z: 0 })
   const [textScale, setTextScale] = useState({ x: 1, y: 1, z: 1 })
   const [text3DOptions, setText3DOptions] = useState({
-    size: 0.15,
-    height: 0.03,
+    size: 0.2,
+    height: 0.05,
     curveSegments: 12,
     bevelEnabled: true,
     bevelThickness: 0.005,
@@ -160,8 +160,8 @@ export default function Component() {
             className="w-full h-full"
             style={{ width: '100%', height: '100%' }}
             camera={{ 
-              position: [0, 0, 5],
-              fov: 50
+              position: [6, 4, 6],
+              fov: 60
             }}
             gl={{ 
               antialias: true,

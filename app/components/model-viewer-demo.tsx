@@ -199,7 +199,7 @@ export function ModelViewerDemo() {
 
       {/* 3D Viewer */}
       <div className="flex-1 h-full">
-        <Canvas shadows camera={{ position: [5, 5, 5], fov: 50 }}>
+        <Canvas shadows camera={{ position: [8, 6, 8], fov: 60 }}>
           <ModelViewer
             modelPath="/models/quarterboard.glb"
             color="#8B4513"

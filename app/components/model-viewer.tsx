@@ -88,20 +88,21 @@ export function ModelViewer({
         // Center the model
         const center = box.getCenter(new THREE.Vector3())
         newScene.position.sub(center)
-        
-        // Scale model to fit an extremely small size
+          // Scale model to fit a reasonable size
         const size = box.getSize(new THREE.Vector3())
         const maxSize = Math.max(size.x, size.y, size.z)
-        const targetSize = 0.3 // Drastically reduced from 0.8 to 0.3
+        const targetSize = 2.0 // Increased to a more reasonable size
         if (maxSize > 0) {
           const scale = targetSize / maxSize
           newScene.scale.setScalar(scale)
         }
-        
-        // Re-center after scaling
+          // Re-center after scaling and ensure proper orientation
         const newBox = new THREE.Box3().setFromObject(newScene)
         const newCenter = newBox.getCenter(new THREE.Vector3())
         newScene.position.sub(newCenter)
+        
+        // Ensure model is upright (quarterboard should stand vertically)
+        newScene.rotation.set(0, 0, 0)
         
         setIsLoading(false)
         onModelLoad?.(newScene)
@@ -150,17 +151,14 @@ export function ModelViewer({
       const center = modelBounds.getCenter(new THREE.Vector3())
       const size = modelBounds.getSize(new THREE.Vector3())
       const maxDimension = Math.max(size.x, size.y, size.z)
+        // Position camera at a reasonable distance
+      const distance = maxDimension * 2.5 // Increased distance for better view
       
-      // Position camera much closer to the tiny model
-      const viewportAspect = viewport.width / viewport.height
-      const distance = maxDimension * (viewportAspect > 1 ? 0.8 : 1) // Significantly reduced distance
-      
-      camera.position.set(center.x, center.y, center.z + distance)
+      camera.position.set(center.x + distance * 0.7, center.y + distance * 0.5, center.z + distance)
       camera.lookAt(center)
-      
-      // Update camera's near and far planes
+        // Update camera's near and far planes
       camera.near = 0.1
-      camera.far = distance * 2 // Reduced far plane
+      camera.far = distance * 3 // Increased far plane
       camera.updateProjectionMatrix()
     }
   }, [modelBounds, camera, viewport])
@@ -323,14 +321,12 @@ export function ModelViewer({
             <Text3D
               font="/fonts/helvetiker_regular.typeface.json"
               position={[textOnModelPos.x, textOnModelPos.y, textOnModelPos.z]}
-              rotation={[0, 0, 0]}
-              scale={[textScale.x * 0.2, textScale.y * 0.2, textScale.z * 0.2]} // Drastically reduced text scale
-              size={text3DOptions.size || 0.02} // Much smaller default size
-              height={text3DOptions.height || 0.005} // Much smaller default height
+              rotation={[0, 0, 0]}              scale={[textScale.x * 0.1, textScale.y * 0.1, textScale.z * 0.1]} // Adjusted text scale
+              size={text3DOptions.size || 0.1} // Reasonable default size              height={text3DOptions.height || 0.02} // Reasonable default height
               curveSegments={text3DOptions.curveSegments || 8}
               bevelEnabled={text3DOptions.bevelEnabled ?? true}
-              bevelThickness={text3DOptions.bevelThickness || 0.0005} // Tiny bevel
-              bevelSize={text3DOptions.bevelSize || 0.0002} // Tiny bevel size
+              bevelThickness={text3DOptions.bevelThickness || 0.002} // Better bevel
+              bevelSize={text3DOptions.bevelSize || 0.001} // Better bevel size
               bevelOffset={text3DOptions.bevelOffset || 0}
               bevelSegments={text3DOptions.bevelSegments || 2}
             >
@@ -370,19 +366,16 @@ export function ModelViewer({
       />
       <pointLight position={[-5, -5, -3]} intensity={0.2} />
 
-      {/* Controls */}
-      <OrbitControls
+      {/* Controls */}      <OrbitControls
         makeDefault
         enableDamping
         dampingFactor={0.05}
         target={[0, 0, 0]}
-        minDistance={0.5}
-        maxDistance={10}
-        maxPolarAngle={Math.PI / 2}
-      />
-
-      {/* Environment helpers */}
-      <gridHelper args={[5, 5]} />
+        minDistance={1}
+        maxDistance={20}
+        maxPolarAngle={Math.PI}
+      />      {/* Environment helpers */}
+      <gridHelper args={[10, 10]} />
     </>
   )
 }
