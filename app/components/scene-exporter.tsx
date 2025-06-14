@@ -1,23 +1,45 @@
 "use client"
 
-import { useRef, useState } from 'react'
-import { useThree } from '@react-three/fiber'
+import { useEffect, useState } from 'react'
 import * as THREE from 'three'
 import emailjs from 'emailjs-com'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { useThree } from '@react-three/fiber'
+import { Html } from '@react-three/drei'
 
 interface SceneExporterProps {
   onExport?: (data: any) => void
+  scene: THREE.Scene
+  gl: THREE.WebGLRenderer
 }
 
-export function SceneExporter({ onExport }: SceneExporterProps) {
-  const { scene, gl } = useThree()
+export function SceneExporterContent({ onExport }: Partial<SceneExporterProps>) {
+  const { scene, gl } = useThree();
+  return <SceneExporter scene={scene} gl={gl} onExport={onExport} />;
+}
+
+export function SceneExporter({ onExport, scene, gl }: SceneExporterProps) {
   const [email, setEmail] = useState('')
   const [isExporting, setIsExporting] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [models] = useState<string[]>([
+    "quarterboard.glb",
+    "quarterboard_2.glb",
+    "The Captain Ahab .glb",
+    "The Cisco Beach.glb",
+    "The Gaslight.glb",
+    "The Hilderbrand.glb",
+    "The Landbank.glb",
+    "The Madaket Millies.glb",
+    "The MarkFlow.glb",
+    "The Original.glb",
+    "The Sconset.glb",
+    "The Shangri-La.glb",
+  ])
+  const [selectedModel, setSelectedModel] = useState<string>('')
 
   const captureScene = async () => {
     setIsExporting(true)
@@ -147,25 +169,47 @@ export function SceneExporter({ onExport }: SceneExporterProps) {
     }
   }
 
+  const handleModelChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedModel(event.target.value)
+  }
+
   return (
-    <div className="space-y-4 p-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email (optional)</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="Enter email to receive scene data"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+    <Html style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
+      <div className="space-y-4 p-4 bg-background/80 backdrop-blur-sm rounded-lg shadow-lg">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email (optional)</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="Enter email to receive scene data"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="model-select">Select a Model</Label>
+          {/* Dropdown menu for selecting models */}
+          <select
+            id="model-select"
+            value={selectedModel}
+            onChange={handleModelChange}
+            title="Select a model"
+            className="w-full p-2 border rounded bg-background"
+          >
+            <option value="" disabled>Select a model</option>
+            {models.map((model) => (
+              <option key={model} value={model}>{model}</option>
+            ))}
+          </select>
+        </div>
+        <Button
+          onClick={handleExport}
+          disabled={isExporting || isSending}
+          className="w-full"
+        >
+          {isExporting ? 'Capturing Scene...' : isSending ? 'Sending Email...' : 'Export Scene'}
+        </Button>
       </div>
-      <Button
-        onClick={handleExport}
-        disabled={isExporting || isSending}
-        className="w-full"
-      >
-        {isExporting ? 'Capturing Scene...' : isSending ? 'Sending Email...' : 'Export Scene'}
-      </Button>
-    </div>
+    </Html>
   )
-} 
+}

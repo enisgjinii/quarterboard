@@ -1,138 +1,274 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
-import { useGLTF, OrbitControls, Center, Text3D, Grid } from "@react-three/drei"
+import { useRef, useEffect, useState, useMemo } from "react"
+import { useGLTF, OrbitControls, Center, Text3D, Grid, Environment } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
+import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js"
+import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js"
 
 interface ModelViewerProps {
   modelPath: string
   color?: string
+  borderColor?: string
+  colorMode?: 'solid' | 'textTexture' | 'mixed'
+  isPreviewMode?: boolean
+  materialText?: string
+  materialTextOptions?: {
+    fontSize: number
+    fontFamily: string
+    textColor: string
+    backgroundColor: string
+    width: number
+    height: number
+    padding: number
+  }
+  targetMeshName?: string
+  textureRepeat?: {
+    u: number
+    v: number
+  }
   text3D?: string
   textColor?: string
   textPosition?: { x: number; y: number; z: number }
+  textRotation?: { x: number; y: number; z: number }
   textScale?: { x: number; y: number; z: number }
+  text3DOptions?: any
+  textMaterial?: 'standard' | 'emissive' | 'engraved'
+  engraveDepth?: number
+  isEngraving?: boolean
+  uvMapTexture?: string
+  uvMapText?: string
+  uvMapTextOptions?: any
+  selectedMaterial?: string | null
+  materialPreview?: string | null
+  onModelLoad?: (info: any) => void
 }
 
 export function ModelViewer({
   modelPath,
   color = "#ffffff",
+  borderColor = "#ffffff",
+  colorMode = 'solid',
+  isPreviewMode = false,
+  materialText = "",
+  materialTextOptions = {
+    fontSize: 1,
+    fontFamily: "helvetiker_regular.typeface.json",
+    textColor: "#ffffff",
+    backgroundColor: "#000000",
+    width: 1,
+    height: 1,
+    padding: 0
+  },
+  targetMeshName = "",
+  textureRepeat = { u: 1, v: 1 },
   text3D = "",
   textColor = "#ffffff",
   textPosition = { x: 0, y: 0.5, z: 0 },
-  textScale = { x: 1.2, y: 1.2, z: 1.2 }
+  textRotation = { x: 0, y: 0, z: 0 },
+  textScale = { x: 1.2, y: 1.2, z: 1.2 },
+  text3DOptions,
+  textMaterial = 'standard',
+  engraveDepth = 0.02,
+  isEngraving = false,
+  uvMapTexture,
+  uvMapText = "",
+  uvMapTextOptions,
+  selectedMaterial = null,
+  materialPreview = null,
+  onModelLoad
 }: ModelViewerProps) {
   const groupRef = useRef<THREE.Group>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [modelBounds, setModelBounds] = useState<THREE.Box3 | null>(null)
-  const { scene } = useGLTF(modelPath)
-  const { camera, viewport } = useThree()
+  const { scene: model } = useGLTF(modelPath, true)
+  const { camera, scene } = useThree()
+  const [textMesh, setTextMesh] = useState<THREE.Mesh | null>(null)
 
   // Calculate optimal grid size based on model bounds
-  const calculateGridSize = (bounds: THREE.Box3) => {
+  const calculateGridSize = (bounds: THREE.Box3 | null) => {
+    if (!bounds) return 10
     const size = bounds.getSize(new THREE.Vector3())
     const maxDimension = Math.max(size.x, size.y, size.z)
-    // Grid size should be at least 2x the model's largest dimension
     return Math.ceil(maxDimension * 2)
   }
 
-  // Calculate optimal camera position
-  const calculateCameraPosition = (bounds: THREE.Box3) => {
-    const center = bounds.getCenter(new THREE.Vector3())
-    const size = bounds.getSize(new THREE.Vector3())
-    const maxDimension = Math.max(size.x, size.y, size.z)
-    
-    // Calculate distance based on model size and viewport aspect ratio
-    const aspectRatio = viewport.width / viewport.height
-    const fov = 75 // Default camera FOV
-    const distance = maxDimension / (2 * Math.tan((fov * Math.PI / 180) / 2))
-    
-    // Adjust distance based on aspect ratio
-    const adjustedDistance = distance * (aspectRatio > 1 ? 1.5 : 2)
-    
-    return {
-      position: new THREE.Vector3(
-        center.x + adjustedDistance * 0.7,
-        center.y + adjustedDistance * 0.5,
-        center.z + adjustedDistance
-      ),
-      target: center
-    }
-  }
-
-  // Load model
+  // Re-center and resize the camera when the model changes
   useEffect(() => {
-    if (modelPath) {
-      setIsLoading(true)
-      const loader = new GLTFLoader()
-      loader.load(modelPath, (gltf: GLTF) => {
-        const newScene = gltf.scene
-        
-        // Calculate bounding box
-        const box = new THREE.Box3().setFromObject(newScene)
-        setModelBounds(box)
-        
-        // Center the model horizontally
-        const center = box.getCenter(new THREE.Vector3())
-        newScene.position.x = -center.x
-        newScene.position.z = -center.z
-        
-        // Place model on the ground
-        const size = box.getSize(new THREE.Vector3())
-        newScene.position.y = -box.min.y
-        
-        // Scale model to fit a reasonable size
-        const maxSize = Math.max(size.x, size.y, size.z)
-        const targetSize = 2.0
-        if (maxSize > 0) {
-          const scale = targetSize / maxSize
-          newScene.scale.setScalar(scale)
-        }
-        
-        // Ensure model is upright
-        newScene.rotation.set(0, 0, 0)
-        
-        setIsLoading(false)
-      })
+    if (model) {
+      const box = new THREE.Box3().setFromObject(model)
+      setModelBounds(box)
+      
+      const size = box.getSize(new THREE.Vector3())
+      const center = box.getCenter(new THREE.Vector3())
+      
+      // Center the model at origin
+      model.position.sub(center)
+      
+      // Update camera position
+      const maxDim = Math.max(size.x, size.y, size.z)
+      if (camera instanceof THREE.PerspectiveCamera) {
+        const fov = camera.fov * (Math.PI / 180)
+        const cameraZ = Math.abs(maxDim / Math.tan(fov / 2)) * 2
+        camera.position.set(maxDim, maxDim * 0.8, maxDim * 1.5)
+        camera.lookAt(0, 0, 0)
+        camera.updateProjectionMatrix()
+      }
     }
-  }, [modelPath])
+  }, [model, camera])
 
-  // Update camera position based on model bounds
+  // Handle model loading
   useEffect(() => {
-    if (modelBounds && camera) {
-      const { position, target } = calculateCameraPosition(modelBounds)
-      camera.position.copy(position)
-      camera.lookAt(target)
-      camera.near = 0.1
-      camera.far = position.length() * 3
-      camera.updateProjectionMatrix()
+    if (model) {
+      setIsLoading(false)
+      if (onModelLoad) {
+        onModelLoad({
+          model,
+          bounds: modelBounds
+        })
+      }
     }
-  }, [modelBounds, camera, viewport])
+  }, [model, modelBounds, onModelLoad])
 
-  // Apply color to model
-  useEffect(() => {
-    if (!scene) return;
-    
-    const materialColor = new THREE.Color(color)
-    scene.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        const material = child.material
-        if (Array.isArray(material)) {
-          material.forEach(m => {
-            if (m instanceof THREE.MeshStandardMaterial) {
-              m.color = materialColor
-              m.needsUpdate = true
-            }
+  // Clone and prepare the model with materials
+  const preparedScene = useMemo(() => {
+    const clone = model.clone(true)
+    clone.traverse((node) => {
+      if (node instanceof THREE.Mesh) {
+        if (Array.isArray(node.material)) {
+          node.material = node.material.map(mat => 
+            new THREE.MeshStandardMaterial({
+              ...mat,
+              color: new THREE.Color(color)
+            })
+          )
+        } else {
+          node.material = new THREE.MeshStandardMaterial({
+            ...node.material,
+            color: new THREE.Color(color)
           })
-        } else if (material instanceof THREE.MeshStandardMaterial) {
-          material.color = materialColor
-          material.needsUpdate = true
         }
       }
     })
-  }, [scene, color])
+    return clone
+  }, [model, color])
+
+  useEffect(() => {
+    if (model) {
+      model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          if (selectedMaterial && materialPreview) {
+            const material = new THREE.MeshStandardMaterial({
+              color: materialPreview,
+              metalness: 0.5,
+              roughness: 0.5
+            });
+            child.material = material;
+          } else {
+            const material = new THREE.MeshStandardMaterial({
+              color: color,
+              metalness: 0.5,
+              roughness: 0.5
+            });
+            child.material = material;
+          }
+        }
+      });
+    }
+  }, [model, color, selectedMaterial, materialPreview]);
+
+  useEffect(() => {
+    if (text3D && scene) {
+      const loader = new FontLoader();
+      loader.load('/fonts/helvetiker_regular.typeface.json', (font) => {
+        const geometry = new TextGeometry(text3D, {
+          font,
+          size: text3DOptions?.size || 0.2,
+          depth: text3DOptions?.height || 0.05,
+          curveSegments: text3DOptions?.curveSegments || 12,
+          bevelEnabled: text3DOptions?.bevelEnabled || false,
+          bevelThickness: text3DOptions?.bevelThickness || 0.03,
+          bevelSize: text3DOptions?.bevelSize || 0.02,
+          bevelOffset: text3DOptions?.bevelOffset || 0,
+          bevelSegments: text3DOptions?.bevelSegments || 5
+        });
+
+        let material;
+        if (textMaterial === 'emissive') {
+          material = new THREE.MeshStandardMaterial({
+            color: textColor,
+            emissive: textColor,
+            emissiveIntensity: 1
+          });
+        } else if (textMaterial === 'engraved' && isEngraving) {
+          material = new THREE.MeshStandardMaterial({
+            color: textColor,
+            metalness: 0.8,
+            roughness: 0.2,
+            displacementScale: engraveDepth
+          });
+        } else {
+          material = new THREE.MeshStandardMaterial({
+            color: textColor,
+            metalness: 0.5,
+            roughness: 0.5
+          });
+        }
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(
+          textPosition?.x || 0,
+          textPosition?.y || 0,
+          textPosition?.z || 0
+        );
+        mesh.rotation.set(
+          textRotation?.x || 0,
+          textRotation?.y || 0,
+          textRotation?.z || 0
+        );
+        mesh.scale.set(
+          textScale?.x || 1,
+          textScale?.y || 1,
+          textScale?.z || 1
+        );
+
+        if (textMesh) {
+          scene.remove(textMesh);
+        }
+        scene.add(mesh);
+        setTextMesh(mesh);
+      });
+    }
+  }, [
+    text3D,
+    textColor,
+    textPosition,
+    textRotation,
+    textScale,
+    text3DOptions,
+    textMaterial,
+    engraveDepth,
+    isEngraving,
+    scene
+  ]);
+
+  useEffect(() => {
+    if (uvMapTexture && uvMapText && model) {
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.load(uvMapTexture, (texture) => {
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            const material = child.material as THREE.MeshStandardMaterial;
+            material.map = texture;
+            material.needsUpdate = true;
+          }
+        });
+      });
+    }
+  }, [uvMapTexture, uvMapText, model]);
 
   if (isLoading) {
     return null
@@ -140,69 +276,63 @@ export function ModelViewer({
 
   return (
     <>
-      <Center>
-        <group ref={groupRef}>
-          <primitive 
-            object={scene} 
-            position={[0, 0, 0]}
-            rotation={[0, 0, 0]}
-          />
-          {text3D && (
-            <Text3D
-              font="/fonts/helvetiker_regular.typeface.json"
-              position={[textPosition.x, textPosition.y, textPosition.z]}
-              rotation={[0, 0, 0]}
-              scale={[textScale.x * 0.1, textScale.y * 0.1, textScale.z * 0.1]}
-              size={0.1}
-              height={0.02}
-              curveSegments={8}
-              bevelEnabled={true}
-              bevelThickness={0.002}
-              bevelSize={0.001}
-              bevelOffset={0}
-              bevelSegments={2}
-            >
-              {text3D}
-              <meshStandardMaterial color={textColor} />
-            </Text3D>
-          )}
-        </group>
-      </Center>
+      <group ref={groupRef}>
+        {/* Environment and Lighting */}
+        <Environment preset="studio" />
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[5, 5, 5]} intensity={0.5} castShadow />
+        <directionalLight position={[-5, 5, -5]} intensity={0.3} />
 
-      {/* Grid with dynamic size */}
-      {modelBounds && (
-        <Grid
-          args={[calculateGridSize(modelBounds), calculateGridSize(modelBounds)]}
-          position={[0, 0, 0]}
-          cellSize={0.5}
-          cellThickness={0.5}
-          cellColor="#6f6f6f"
-          sectionSize={1}
-          sectionThickness={1}
-          sectionColor="#9d4b4b"
-          fadeDistance={30}
-          fadeStrength={1}
-          followCamera={false}
-          infiniteGrid={true}
-        />
-      )}
+        {/* Grid Helpers */}
+        <gridHelper 
+          args={[calculateGridSize(modelBounds), 20]} 
+          position={[0, -0.01, 0]}
+          rotation={[0, 0, 0]}
+        >
+          <meshBasicMaterial transparent opacity={0.5} />
+        </gridHelper>
+        <gridHelper 
+          args={[calculateGridSize(modelBounds), 20]} 
+          position={[0, -0.01, 0]}
+          rotation={[0, Math.PI / 2, 0]}
+        >
+          <meshBasicMaterial transparent opacity={0.2} />
+        </gridHelper>
 
-      <ambientLight intensity={0.7} />
-      <directionalLight 
-        position={[5, 5, 3]}
-        intensity={0.8}
-        castShadow
-      />
-      <pointLight position={[-5, -5, -3]} intensity={0.2} />
+        {/* Axes Helper */}
+        <axesHelper args={[calculateGridSize(modelBounds) / 2]} />
 
+        {/* Model */}
+        <Center>
+          <primitive object={preparedScene} />
+        </Center>
+
+        {/* Optional 3D Text */}
+        {text3D && (
+          <Text3D
+            font="/fonts/helvetiker_regular.typeface.json"
+            position={[textPosition.x, textPosition.y, textPosition.z]}
+            scale={[textScale.x, textScale.y, textScale.z]}
+          >
+            {text3D}
+            <meshStandardMaterial color={textColor || "#ffffff"} />
+          </Text3D>
+        )}
+      </group>
+      {/* Camera Controls - must be direct child of Canvas */}
       <OrbitControls
-        makeDefault
-        enableDamping
-        dampingFactor={0.05}
+        enableDamping={true}
+        dampingFactor={0.1}
+        enableZoom={true}
+        zoomSpeed={0.8}
+        enablePan={true}
+        panSpeed={0.5}
+        enableRotate={true}
+        rotateSpeed={0.5}
+        minDistance={0.1}
+        maxDistance={200}
         target={[0, 0, 0]}
-        minDistance={1}
-        maxDistance={20}
-        maxPolarAngle={Math.PI / 2} // Limit rotation to prevent viewing from below
+        makeDefault
       />
     </>
   )
