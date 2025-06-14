@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>QuarterBoard Scene Export</title>
+</head>
+<body style="font-family: system-ui, sans-serif, Arial; font-size: 12px; margin: 0; padding: 20px;">
+    <div>
+        <div>A message by {{name}} has been received. Kindly respond at your earliest convenience.</div>
+        <div style="margin-top: 20px; padding: 15px 0; border-width: 1px 0; border-style: dashed; border-color: lightgrey;">
+            <table role="presentation" style="width: 100%;">
+                <tr>
+                    <td style="vertical-align: top; width: 60px;">
+                        <div style="padding: 6px 10px; margin: 0 10px; background-color: aliceblue; border-radius: 5px; font-size: 26px;" role="img">
+                            &#x1F464;
+                        </div>
+                    </td>
+                    <td style="vertical-align: top;">
+                        <div style="color: #2c3e50; font-size: 16px;">
+                            <strong>{{name}}</strong>
+                        </div>
+                        <div style="color: #666; font-size: 14px; margin: 5px 0;">
+                            To: {{to_email}}<br>
+                            From: {{from_name}}<br>
+                            Time: {{time}}
+                        </div>
+                        <div style="color: #cccccc; font-size: 13px; margin-top: 5px;">{{time}}</div>
+                        <div style="font-size: 16px; margin-top: 15px; white-space: pre-wrap;">{{message}}</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html> 

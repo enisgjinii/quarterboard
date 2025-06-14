@@ -11,7 +11,7 @@ import { useTheme } from "next-themes"
 import { ModelViewer } from "./components/model-viewer"
 import { ModelViewerDemo } from "./components/model-viewer-demo"
 import { UVMapEditor } from "./components/uv-map-editor"
-import { SceneExporterContent } from "./components/scene-exporter"
+// import { SceneExporterContent } from "./components/scene-exporter"
 
 interface MeshInfo {
   name: string
@@ -127,7 +127,7 @@ function SceneContent({
         uvMapText={uvMapText}
         uvMapTextOptions={uvMapTextOptions}
       />
-      <SceneExporterContent />
+      {/* <SceneExporterContent />   */}
     </>
   );
 }
@@ -143,7 +143,6 @@ export default function Component() {
   const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null)
   const [materialPreview, setMaterialPreview] = useState<string | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
-  const [showTextDemo, setShowTextDemo] = useState(false)
   
   // 3D Text states - Centered at origin by default
   const [overlayText, setOverlayText] = useState("")
@@ -245,74 +244,68 @@ export default function Component() {
   return (
     <div className="h-screen w-screen flex overflow-hidden">
       {/* Left Sidebar */}
-      <div className="w-96 border-r bg-background flex-shrink-0">
+      <div className="w-72 border-r bg-background flex-shrink-0">
         <AppSidebar {...sidebarProps} />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 relative">
-        {showTextDemo ? (
-          <ModelViewerDemo />
-        ) : (
-          <>
-            <Canvas 
-              camera={{ 
-                position: [0, 2, 6],
-                fov: 45,
-                near: 0.1,
-                far: 1000
-              }}
-              gl={{ 
-                antialias: true,
-                alpha: true
-              }}
-              onCreated={({ gl }) => {
-                gl.setClearColor('#000000', 0);
-              }}
-            >
-              <OrbitControls 
-                enableDamping={true} 
-                dampingFactor={0.1} 
-                enableZoom={true} 
-                zoomSpeed={0.8} 
-                enablePan={true} 
-                panSpeed={0.5} 
-                enableRotate={true} 
-                rotateSpeed={0.5} 
-                minDistance={0.1} 
-                maxDistance={200} 
-                target={[0, 0, 0]} 
-              />
-              <Suspense fallback={
-                <Html center>
-                  <div className="text-white">Loading model...</div>
-                </Html>
-              }>
-                <SceneContent
-                  modelUrl={modelUrl}
-                  modelColor={modelColor}
-                  handleModelLoad={handleModelLoad}
-                  selectedMaterial={selectedMaterial}
-                  materialPreview={materialPreview}
-                  isPreviewMode={isPreviewMode}
-                  text3D={text3D}
-                  textColor={textColor}
-                  textPosition={textPosition}
-                  textRotation={textRotation}
-                  textScale={textScale}
-                  text3DOptions={text3DOptions}
-                  textMaterial={textMaterial}
-                  engraveDepth={engraveDepth}
-                  isEngraving={isEngraving}
-                  uvMapTexture={uvMapTexture}
-                  uvMapText={uvMapText}
-                  uvMapTextOptions={uvMapTextOptions}
-                  onSceneReady={handleSceneReady}
-                />
-              </Suspense>
-            </Canvas>
-          </>
-        )}
+        <Canvas 
+          camera={{ 
+            position: [0, 2, 6],
+            fov: 45,
+            near: 0.1,
+            far: 1000
+          }}
+          gl={{ 
+            antialias: true,
+            alpha: true
+          }}
+          onCreated={({ gl }) => {
+            gl.setClearColor('#000000', 0);
+          }}
+        >
+          <OrbitControls 
+            enableDamping={true} 
+            dampingFactor={0.1} 
+            enableZoom={true} 
+            zoomSpeed={0.8} 
+            enablePan={true} 
+            panSpeed={0.5} 
+            enableRotate={true} 
+            rotateSpeed={0.5} 
+            minDistance={0.1} 
+            maxDistance={200} 
+            target={[0, 0, 0]} 
+          />
+          <Suspense fallback={
+            <Html center>
+              <div className="text-white">Loading model...</div>
+            </Html>
+          }>
+            <SceneContent
+              modelUrl={modelUrl}
+              modelColor={modelColor}
+              handleModelLoad={handleModelLoad}
+              selectedMaterial={selectedMaterial}
+              materialPreview={materialPreview}
+              isPreviewMode={isPreviewMode}
+              text3D={text3D}
+              textColor={textColor}
+              textPosition={textPosition}
+              textRotation={textRotation}
+              textScale={textScale}
+              text3DOptions={text3DOptions}
+              textMaterial={textMaterial}
+              engraveDepth={engraveDepth}
+              isEngraving={isEngraving}
+              uvMapTexture={uvMapTexture}
+              uvMapText={uvMapText}
+              uvMapTextOptions={uvMapTextOptions}
+              onSceneReady={handleSceneReady}
+            />
+          </Suspense>
+        </Canvas>
       </div>
     </div>
   )

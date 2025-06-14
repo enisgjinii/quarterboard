@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Type, Sun, Moon, Download, Mail } from "lucide-react"
 import { useTheme } from "next-themes"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import emailjs from '@emailjs/browser'
 import * as THREE from 'three'
@@ -79,9 +79,31 @@ export function AppSidebar({
   onExport
 }: AppSidebarProps) {
   const { theme, setTheme } = useTheme()
+  const [selectedModel, setSelectedModel] = useState<string>("")
   const [email, setEmail] = useState('')
   const [isExporting, setIsExporting] = useState(false)
   const [isSending, setIsSending] = useState(false)
+
+  const models = [
+    "quarterboard.glb",
+    "quarterboard_2.glb",
+    "The Captain Ahab .glb",
+    "The Cisco Beach.glb",
+    "The Gaslight.glb",
+    "The Hilderbrand.glb",
+    "The Landbank.glb",
+    "The Madaket Millies.glb",
+    "The MarkFlow.glb",
+    "The Original.glb",
+    "The Sconset.glb",
+    "The Shangri-La.glb",
+  ]
+
+  useEffect(() => {
+    if (selectedModel) {
+      setModelUrl(`/models/${selectedModel}`)
+    }
+  }, [selectedModel, setModelUrl])
 
   const captureScene = async (): Promise<SceneData | null> => {
     if (!scene || !gl) return null;
@@ -105,30 +127,92 @@ export function AppSidebar({
     };
 
     return sceneData;
-  }
+  };
 
-  const sendEmail = async (data: any) => {
-    if (!email) return;
+  const sendEmail = async (data: SceneData) => {
+    if (!email) {
+      toast.error('Please enter an email address');
+      return;
+    }
 
     try {
       setIsSending(true);
-      await emailjs.send(
-        'YOUR_SERVICE_ID',
-        'YOUR_TEMPLATE_ID',
-        {
-          to_email: email,
-          scene_data: JSON.stringify(data)
-        },
-        'YOUR_PUBLIC_KEY'
-      );
-      toast.success('Scene data sent successfully');
-    } catch (error) {
-      console.error('Error sending email:', error);
-      toast.error('Failed to send scene data. Please try again.');
+
+      // Initialize EmailJS
+      emailjs.init('eG7bbVA-D3yNyGjbj');
+
+      // Create a minimal version of the scene data without the image
+      const minimalSceneData = {
+        modelUrl: data.modelUrl,
+        modelColor: data.modelColor,
+        text3D: data.text3D,
+        textColor: data.textColor,
+        textPosition: data.textPosition,
+        textRotation: data.textRotation,
+        textScale: data.textScale,
+        textMaterial: data.textMaterial,
+        engraveDepth: data.engraveDepth,
+        isEngraving: data.isEngraving
+      };
+
+      // Get current time
+      const now = new Date();
+      const time = now.toLocaleString();
+
+      // Prepare template parameters
+      const templateParams = {
+        to_email: email,
+        name: 'QuarterBoard App',
+        from_name: 'QuarterBoard App',
+        message: `Here is your exported scene data. The scene image has been omitted due to size limitations.\n\nScene Data:\n${JSON.stringify(minimalSceneData, null, 2)}`,
+        time: time
+      };
+
+      console.log('Sending email with params:', {
+        serviceID: 'service_2g3snpe',
+        templateID: 'template_vsp1vjs',
+        toEmail: email,
+        dataSize: JSON.stringify(templateParams).length
+      });
+
+      // Send email using Promise
+      const result = await new Promise((resolve, reject) => {
+        emailjs.send(
+          'service_2g3snpe',
+          'template_vsp1vjs',
+          templateParams
+        )
+        .then((response) => {
+          console.log('EmailJS response:', response);
+          resolve(response);
+        })
+        .catch((error) => {
+          console.error('EmailJS error details:', {
+            error,
+            message: error.message,
+            text: error.text,
+            status: error.status,
+            stack: error.stack
+          });
+          reject(error);
+        });
+      });
+
+      console.log('Email sent successfully:', result);
+      toast.success('Scene data sent successfully!');
+    } catch (error: any) {
+      console.error('Detailed error in sendEmail:', {
+        error,
+        message: error.message,
+        text: error.text,
+        status: error.status,
+        stack: error.stack
+      });
+      toast.error(error.message || 'Failed to send scene data. Please try again.');
     } finally {
       setIsSending(false);
     }
-  }
+  };
 
   const handleExport = async () => {
     if (!scene || !gl) return;
@@ -136,7 +220,10 @@ export function AppSidebar({
     try {
       setIsExporting(true);
       const sceneData = await captureScene();
-      if (!sceneData) return;
+      if (!sceneData) {
+        toast.error('Failed to capture scene data');
+        return;
+      }
 
       if (email) {
         await sendEmail(sceneData);
@@ -151,23 +238,24 @@ export function AppSidebar({
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        toast.success('Scene data downloaded successfully!');
       }
 
       onExport(sceneData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting scene:', error);
-      toast.error('Failed to export scene. Please try again.');
+      toast.error(error.message || 'Failed to export scene. Please try again.');
     } finally {
       setIsExporting(false);
     }
-  }
+  };
 
   return (
     <div className="h-full flex flex-col bg-background">
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between p-3 border-b">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Type className="w-4 h-4 text-primary-foreground" />
+          <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
+            <Type className="w-3.5 h-3.5 text-primary-foreground" />
           </div>
           <div>
             <h1 className="font-semibold text-sm">3D Editor</h1>
@@ -177,38 +265,52 @@ export function AppSidebar({
         <Button
           variant="ghost"
           size="icon"
+          className="h-7 w-7"
           onClick={() => setTheme(theme === "light" ? "dark" : "light")}
         >
-          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          <Sun className="h-3.5 w-3.5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-3.5 w-3.5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           <span className="sr-only">Toggle theme</span>
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Model Settings</CardTitle>
+          <CardHeader className="p-3">
+            <CardTitle className="text-sm">Model Settings</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="model-url">Model URL</Label>
-                <Input
-                  id="model-url"
-                  value={modelUrl}
-                  onChange={(e) => setModelUrl(e.target.value)}
-                  placeholder="Enter model URL"
-                />
-              </div>
+          <CardContent className="p-3 pt-0 space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="model-select" className="text-xs">Select Model</Label>
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger id="model-select" className="h-8 text-sm">
+                  <SelectValue placeholder="Choose a model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map((model) => (
+                    <SelectItem key={model} value={model} className="text-sm">
+                      {model.replace('.glb', '')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="model-color">Model Color</Label>
+            <div className="space-y-2">
+              <Label htmlFor="model-color" className="text-xs">Model Color</Label>
+              <div className="flex gap-2">
                 <Input
                   id="model-color"
                   type="color"
                   value={modelColor}
                   onChange={(e) => setModelColor(e.target.value)}
+                  className="w-8 h-8 p-1"
+                />
+                <Input
+                  value={modelColor}
+                  onChange={(e) => setModelColor(e.target.value)}
+                  placeholder="#ffffff"
+                  className="h-8 text-sm"
                 />
               </div>
             </div>
@@ -216,140 +318,78 @@ export function AppSidebar({
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Text Settings</CardTitle>
+          <CardHeader className="p-3">
+            <CardTitle className="text-sm">Text Settings</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="text-3d">3D Text</Label>
-                <Input
-                  id="text-3d"
-                  value={text3D}
-                  onChange={(e) => setText3D(e.target.value)}
-                  placeholder="Enter 3D text"
-                />
-              </div>
+          <CardContent className="p-3 pt-0 space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="text-3d" className="text-xs">3D Text</Label>
+              <Input
+                id="text-3d"
+                value={text3D}
+                onChange={(e) => setText3D(e.target.value)}
+                placeholder="Enter text"
+                className="h-8 text-sm"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="text-color">Text Color</Label>
+            <div className="space-y-2">
+              <Label htmlFor="text-color" className="text-xs">Text Color</Label>
+              <div className="flex gap-2">
                 <Input
                   id="text-color"
                   type="color"
                   value={textColor}
                   onChange={(e) => setTextColor(e.target.value)}
+                  className="w-8 h-8 p-1"
+                />
+                <Input
+                  value={textColor}
+                  onChange={(e) => setTextColor(e.target.value)}
+                  placeholder="#ffffff"
+                  className="h-8 text-sm"
                 />
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Text Position</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Input
-                    type="number"
-                    value={textPosition.x}
-                    onChange={(e) => setTextPosition({ ...textPosition, x: parseFloat(e.target.value) })}
-                    placeholder="X"
-                  />
-                  <Input
-                    type="number"
-                    value={textPosition.y}
-                    onChange={(e) => setTextPosition({ ...textPosition, y: parseFloat(e.target.value) })}
-                    placeholder="Y"
-                  />
-                  <Input
-                    type="number"
-                    value={textPosition.z}
-                    onChange={(e) => setTextPosition({ ...textPosition, z: parseFloat(e.target.value) })}
-                    placeholder="Z"
-                  />
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="text-material" className="text-xs">Text Material</Label>
+              <Select value={textMaterial} onValueChange={(value: 'standard' | 'emissive' | 'engraved') => setTextMaterial(value)}>
+                <SelectTrigger id="text-material" className="h-8 text-sm">
+                  <SelectValue placeholder="Select material" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard" className="text-sm">Standard</SelectItem>
+                  <SelectItem value="emissive" className="text-sm">Emissive</SelectItem>
+                  <SelectItem value="engraved" className="text-sm">Engraved</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Text Rotation</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Input
-                    type="number"
-                    value={textRotation.x}
-                    onChange={(e) => setTextRotation({ ...textRotation, x: parseFloat(e.target.value) })}
-                    placeholder="X"
-                  />
-                  <Input
-                    type="number"
-                    value={textRotation.y}
-                    onChange={(e) => setTextRotation({ ...textRotation, y: parseFloat(e.target.value) })}
-                    placeholder="Y"
-                  />
-                  <Input
-                    type="number"
-                    value={textRotation.z}
-                    onChange={(e) => setTextRotation({ ...textRotation, z: parseFloat(e.target.value) })}
-                    placeholder="Z"
-                  />
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="engrave-depth" className="text-xs">Engrave Depth</Label>
+              <Slider
+                id="engrave-depth"
+                value={[engraveDepth]}
+                onValueChange={([value]) => setEngraveDepth(value)}
+                min={0}
+                max={1}
+                step={0.1}
+                className="h-8"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label>Text Scale</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Input
-                    type="number"
-                    value={textScale.x}
-                    onChange={(e) => setTextScale({ ...textScale, x: parseFloat(e.target.value) })}
-                    placeholder="X"
-                  />
-                  <Input
-                    type="number"
-                    value={textScale.y}
-                    onChange={(e) => setTextScale({ ...textScale, y: parseFloat(e.target.value) })}
-                    placeholder="Y"
-                  />
-                  <Input
-                    type="number"
-                    value={textScale.z}
-                    onChange={(e) => setTextScale({ ...textScale, z: parseFloat(e.target.value) })}
-                    placeholder="Z"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="text-material">Text Material</Label>
-                <Select value={textMaterial} onValueChange={(value: 'standard' | 'emissive' | 'engraved') => setTextMaterial(value)}>
-                  <SelectTrigger id="text-material">
-                    <SelectValue placeholder="Select material" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="emissive">Emissive</SelectItem>
-                    <SelectItem value="engraved">Engraved</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="engrave-depth">Engrave Depth</Label>
-                <Slider
-                  id="engrave-depth"
-                  value={[engraveDepth]}
-                  onValueChange={([value]) => setEngraveDepth(value)}
-                  min={0}
-                  max={1}
-                  step={0.1}
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="is-engraving"
-                  checked={isEngraving}
-                  onChange={(e) => setIsEngraving(e.target.checked)}
-                  aria-label="Enable engraving"
-                  title="Enable engraving"
-                />
-                <Label htmlFor="is-engraving">Enable Engraving</Label>
-              </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="is-engraving"
+                checked={isEngraving}
+                onChange={(e) => setIsEngraving(e.target.checked)}
+                className="h-3.5 w-3.5"
+                aria-label="Enable engraving"
+                title="Enable engraving"
+              />
+              <Label htmlFor="is-engraving" className="text-xs">Enable Engraving</Label>
             </div>
           </CardContent>
         </Card>

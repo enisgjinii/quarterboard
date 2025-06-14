@@ -283,25 +283,6 @@ export function ModelViewer({
         <directionalLight position={[5, 5, 5]} intensity={0.5} castShadow />
         <directionalLight position={[-5, 5, -5]} intensity={0.3} />
 
-        {/* Grid Helpers */}
-        <gridHelper 
-          args={[calculateGridSize(modelBounds), 20]} 
-          position={[0, -0.01, 0]}
-          rotation={[0, 0, 0]}
-        >
-          <meshBasicMaterial transparent opacity={0.5} />
-        </gridHelper>
-        <gridHelper 
-          args={[calculateGridSize(modelBounds), 20]} 
-          position={[0, -0.01, 0]}
-          rotation={[0, Math.PI / 2, 0]}
-        >
-          <meshBasicMaterial transparent opacity={0.2} />
-        </gridHelper>
-
-        {/* Axes Helper */}
-        <axesHelper args={[calculateGridSize(modelBounds) / 2]} />
-
         {/* Model */}
         <Center>
           <primitive object={preparedScene} />
