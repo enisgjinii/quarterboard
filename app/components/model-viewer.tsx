@@ -39,6 +39,8 @@ interface ModelViewerProps {
   textMaterial?: 'standard' | 'emissive' | 'engraved'
   engraveDepth?: number
   isEngraving?: boolean
+  selectedFont?: string
+  onFontError?: (error: Error) => void
   uvMapTexture?: string
   uvMapText?: string
   uvMapTextOptions?: any
@@ -74,6 +76,8 @@ export function ModelViewer({
   textMaterial = 'standard',
   engraveDepth = 0.02,
   isEngraving = false,
+  selectedFont = "helvetiker_regular.typeface.json",
+  onFontError,
   uvMapTexture,
   uvMapText = "",
   uvMapTextOptions,
@@ -183,64 +187,80 @@ export function ModelViewer({
   useEffect(() => {
     if (text3D && scene) {
       const loader = new FontLoader();
-      loader.load('/fonts/helvetiker_regular.typeface.json', (font) => {
-        const geometry = new TextGeometry(text3D, {
-          font,
-          size: text3DOptions?.size || 0.2,
-          depth: text3DOptions?.height || 0.05,
-          curveSegments: text3DOptions?.curveSegments || 12,
-          bevelEnabled: text3DOptions?.bevelEnabled || false,
-          bevelThickness: text3DOptions?.bevelThickness || 0.03,
-          bevelSize: text3DOptions?.bevelSize || 0.02,
-          bevelOffset: text3DOptions?.bevelOffset || 0,
-          bevelSegments: text3DOptions?.bevelSegments || 5
-        });
+      const fontPath = `/fonts/${selectedFont}`;
+      
+      // Add error handling for font loading
+      loader.load(
+        fontPath,
+        (font) => {
+          try {
+            const geometry = new TextGeometry(text3D, {
+              font,
+              size: text3DOptions?.size || 0.2,
+              depth: text3DOptions?.height || 0.05,
+              curveSegments: text3DOptions?.curveSegments || 12,
+              bevelEnabled: text3DOptions?.bevelEnabled || true,
+              bevelThickness: text3DOptions?.bevelThickness || 0.03,
+              bevelSize: text3DOptions?.bevelSize || 0.02,
+              bevelOffset: text3DOptions?.bevelOffset || 0,
+              bevelSegments: text3DOptions?.bevelSegments || 5
+            });
 
-        let material;
-        if (textMaterial === 'emissive') {
-          material = new THREE.MeshStandardMaterial({
-            color: textColor,
-            emissive: textColor,
-            emissiveIntensity: 1
-          });
-        } else if (textMaterial === 'engraved' && isEngraving) {
-          material = new THREE.MeshStandardMaterial({
-            color: textColor,
-            metalness: 0.8,
-            roughness: 0.2,
-            displacementScale: engraveDepth
-          });
-        } else {
-          material = new THREE.MeshStandardMaterial({
-            color: textColor,
-            metalness: 0.5,
-            roughness: 0.5
-          });
+            let material;
+            if (textMaterial === 'emissive') {
+              material = new THREE.MeshStandardMaterial({
+                color: textColor,
+                emissive: textColor,
+                emissiveIntensity: 1
+              });
+            } else if (textMaterial === 'engraved' && isEngraving) {
+              material = new THREE.MeshStandardMaterial({
+                color: textColor,
+                metalness: 0.8,
+                roughness: 0.2,
+                displacementScale: engraveDepth
+              });
+            } else {
+              material = new THREE.MeshStandardMaterial({
+                color: textColor,
+                metalness: 0.5,
+                roughness: 0.5
+              });
+            }
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(
+              textPosition?.x || 0,
+              textPosition?.y || 0,
+              textPosition?.z || 0
+            );
+            mesh.rotation.set(
+              textRotation?.x || 0,
+              textRotation?.y || 0,
+              textRotation?.z || 0
+            );
+            mesh.scale.set(
+              textScale?.x || 1,
+              textScale?.y || 1,
+              textScale?.z || 1
+            );
+
+            if (textMesh) {
+              scene.remove(textMesh);
+            }
+            scene.add(mesh);
+            setTextMesh(mesh);
+          } catch (error) {
+            console.error('Error creating text geometry:', error);
+            onFontError?.(error instanceof Error ? error : new Error('Failed to create text geometry'));
+          }
+        },
+        undefined,
+        (error) => {
+          console.error('Error loading font:', error);
+          onFontError?.(error instanceof Error ? error : new Error('Failed to load font'));
         }
-
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.set(
-          textPosition?.x || 0,
-          textPosition?.y || 0,
-          textPosition?.z || 0
-        );
-        mesh.rotation.set(
-          textRotation?.x || 0,
-          textRotation?.y || 0,
-          textRotation?.z || 0
-        );
-        mesh.scale.set(
-          textScale?.x || 1,
-          textScale?.y || 1,
-          textScale?.z || 1
-        );
-
-        if (textMesh) {
-          scene.remove(textMesh);
-        }
-        scene.add(mesh);
-        setTextMesh(mesh);
-      });
+      );
     }
   }, [
     text3D,
@@ -252,7 +272,9 @@ export function ModelViewer({
     textMaterial,
     engraveDepth,
     isEngraving,
-    scene
+    scene,
+    selectedFont,
+    onFontError
   ]);
 
   useEffect(() => {
@@ -291,7 +313,7 @@ export function ModelViewer({
         {/* Optional 3D Text */}
         {text3D && (
           <Text3D
-            font="/fonts/helvetiker_regular.typeface.json"
+            font={`/fonts/${selectedFont}`}
             position={[textPosition.x, textPosition.y, textPosition.z]}
             scale={[textScale.x, textScale.y, textScale.z]}
           >

@@ -11,6 +11,7 @@ import { useTheme } from "next-themes"
 import { ModelViewer } from "./components/model-viewer"
 import { ModelViewerDemo } from "./components/model-viewer-demo"
 import { UVMapEditor } from "./components/uv-map-editor"
+import { toast } from "sonner"
 // import { SceneExporterContent } from "./components/scene-exporter"
 
 interface MeshInfo {
@@ -58,6 +59,8 @@ interface SceneContentProps {
   textMaterial: 'standard' | 'emissive' | 'engraved';
   engraveDepth: number;
   isEngraving: boolean;
+  selectedFont: string;
+  onFontError: (error: Error) => void;
   uvMapTexture: string | null;
   uvMapText: string;
   uvMapTextOptions: any;
@@ -81,6 +84,8 @@ function SceneContent({
   textMaterial,
   engraveDepth,
   isEngraving,
+  selectedFont,
+  onFontError,
   uvMapTexture,
   uvMapText,
   uvMapTextOptions,
@@ -91,6 +96,14 @@ function SceneContent({
   useEffect(() => {
     onSceneReady(scene, gl);
   }, [scene, gl, onSceneReady]);
+
+  const handleFontError = useCallback((error: Error) => {
+    console.error('Font error:', error);
+    // Fallback to default font
+    if (selectedFont !== 'helvetiker_regular.typeface.json') {
+      onFontError(new Error('Failed to load selected font. Falling back to default font.'));
+    }
+  }, [selectedFont, onFontError]);
 
   return (
     <>
@@ -123,6 +136,8 @@ function SceneContent({
         textMaterial={textMaterial}
         engraveDepth={engraveDepth}
         isEngraving={isEngraving}
+        selectedFont={selectedFont}
+        onFontError={handleFontError}
         uvMapTexture={uvMapTexture || undefined}
         uvMapText={uvMapText}
         uvMapTextOptions={uvMapTextOptions}
@@ -204,6 +219,8 @@ export default function Component() {
     }
   }, [selectedModel])
 
+  const [selectedFont, setSelectedFont] = useState("helvetiker_regular.typeface.json")
+
   const sidebarProps = {
     modelUrl,
     setModelUrl,
@@ -225,6 +242,8 @@ export default function Component() {
     setEngraveDepth,
     isEngraving,
     setIsEngraving,
+    selectedFont,
+    setSelectedFont,
     scene,
     gl,
     onExport: (data: any) => {
@@ -236,6 +255,15 @@ export default function Component() {
     setUvMapText(text)
     setUvMapTextOptions(options)
   }
+
+  const handleFontError = useCallback((error: Error) => {
+    console.error('Font error:', error);
+    // Fallback to default font
+    if (selectedFont !== 'helvetiker_regular.typeface.json') {
+      setSelectedFont('helvetiker_regular.typeface.json');
+      toast.error('Failed to load selected font. Falling back to default font.');
+    }
+  }, [selectedFont]);
 
   if (!mounted) {
     return null
@@ -299,6 +327,8 @@ export default function Component() {
               textMaterial={textMaterial}
               engraveDepth={engraveDepth}
               isEngraving={isEngraving}
+              selectedFont={selectedFont}
+              onFontError={handleFontError}
               uvMapTexture={uvMapTexture}
               uvMapText={uvMapText}
               uvMapTextOptions={uvMapTextOptions}

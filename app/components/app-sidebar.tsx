@@ -25,6 +25,7 @@ interface SceneData {
   engraveDepth: number;
   isEngraving: boolean;
   image: string;
+  selectedFont: string;
 }
 
 interface AppSidebarProps {
@@ -48,6 +49,8 @@ interface AppSidebarProps {
   setEngraveDepth: (depth: number) => void;
   isEngraving: boolean;
   setIsEngraving: (isEngraving: boolean) => void;
+  selectedFont: string;
+  setSelectedFont: (font: string) => void;
   scene: THREE.Scene | null;
   gl: THREE.WebGLRenderer | null;
   onExport: (data: any) => void;
@@ -74,6 +77,8 @@ export function AppSidebar({
   setEngraveDepth,
   isEngraving,
   setIsEngraving,
+  selectedFont,
+  setSelectedFont,
   scene,
   gl,
   onExport
@@ -99,6 +104,20 @@ export function AppSidebar({
     "The Shangri-La.glb",
   ]
 
+  const fonts = [
+    "helvetiker_regular.typeface.json",
+    "EBGaramond-Regular.ttf",
+    "EBGaramond-Bold.ttf",
+    "EBGaramond-Italic.ttf",
+    "EBGaramond-BoldItalic.ttf",
+    "CopperplateCC-Bold.ttf",
+    "CopperplateCC-Heavy.ttf",
+    "Bookman Old Style Regular.ttf",
+    "Bookman Old Style Bold.ttf",
+    "Bookman Old Style Italic.ttf",
+    "Bookman Old Style Bold Italic.ttf"
+  ];
+
   useEffect(() => {
     if (selectedModel) {
       setModelUrl(`/models/${selectedModel}`)
@@ -123,7 +142,8 @@ export function AppSidebar({
       textMaterial,
       engraveDepth,
       isEngraving,
-      image
+      image,
+      selectedFont
     };
 
     return sceneData;
@@ -331,6 +351,22 @@ export function AppSidebar({
                 placeholder="Enter text"
                 className="h-8 text-sm"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="font-select" className="text-xs">Font</Label>
+              <Select value={selectedFont} onValueChange={setSelectedFont}>
+                <SelectTrigger id="font-select" className="h-8 text-sm">
+                  <SelectValue placeholder="Select font" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fonts.map((font) => (
+                    <SelectItem key={font} value={font} className="text-sm">
+                      {font.replace(/_/g, ' ').replace(/-/g, ' ').replace('.ttf', '').replace('.typeface.json', '')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
