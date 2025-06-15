@@ -65,6 +65,8 @@ interface SceneContentProps {
   uvMapText: string;
   uvMapTextOptions: any;
   onSceneReady: (scene: THREE.Scene, gl: THREE.WebGLRenderer) => void;
+  isRecording: boolean;
+  onRecordingComplete: (blob: Blob) => void;
 }
 
 // Create a new component that uses useThree
@@ -89,7 +91,9 @@ function SceneContent({
   uvMapTexture,
   uvMapText,
   uvMapTextOptions,
-  onSceneReady
+  onSceneReady,
+  isRecording,
+  onRecordingComplete
 }: SceneContentProps) {
   const { scene, gl } = useThree();
   
@@ -141,6 +145,8 @@ function SceneContent({
         uvMapTexture={uvMapTexture || undefined}
         uvMapText={uvMapText}
         uvMapTextOptions={uvMapTextOptions}
+        isRecording={isRecording}
+        onRecordingComplete={onRecordingComplete}
       />
       {/* <SceneExporterContent />   */}
     </>
@@ -221,6 +227,61 @@ export default function Component() {
 
   const [selectedFont, setSelectedFont] = useState("helvetiker_regular.typeface.json")
 
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordedVideo, setRecordedVideo] = useState<Blob | null>(null)
+
+  // Handle recording start
+  const handleRecordingStart = useCallback(() => {
+    try {
+      setIsRecording(true)
+      toast.info('Recording started')
+    } catch (error) {
+      console.error('Error starting recording:', error)
+      toast.error('Failed to start recording')
+      setIsRecording(false)
+    }
+  }, [])
+
+  // Handle recording stop
+  const handleRecordingStop = useCallback(() => {
+    try {
+      setIsRecording(false)
+      toast.info('Recording stopped')
+    } catch (error) {
+      console.error('Error stopping recording:', error)
+      toast.error('Failed to stop recording')
+    }
+  }, [])
+
+  // Handle recording complete
+  const handleRecordingComplete = useCallback((blob: Blob) => {
+    try {
+      setRecordedVideo(blob)
+      // Create download link
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `quarterboard-recording-${new Date().toISOString()}.webm`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success('Recording saved successfully!')
+    } catch (error) {
+      console.error('Error saving recording:', error)
+      toast.error('Failed to save recording')
+    }
+  }, [])
+
+  // Cleanup recording state on unmount
+  useEffect(() => {
+    return () => {
+      if (isRecording) {
+        setIsRecording(false)
+      }
+    }
+  }, [isRecording])
+
   const sidebarProps = {
     modelUrl,
     setModelUrl,
@@ -248,7 +309,10 @@ export default function Component() {
     gl,
     onExport: (data: any) => {
       console.log('Scene exported:', data);
-    }
+    },
+    isRecording,
+    onRecordingStart: handleRecordingStart,
+    onRecordingStop: handleRecordingStop
   };
 
   const handleUVTextUpdate = (text: string, options: any) => {
@@ -333,6 +397,8 @@ export default function Component() {
               uvMapText={uvMapText}
               uvMapTextOptions={uvMapTextOptions}
               onSceneReady={handleSceneReady}
+              isRecording={isRecording}
+              onRecordingComplete={handleRecordingComplete}
             />
           </Suspense>
         </Canvas>

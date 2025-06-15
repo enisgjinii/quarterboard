@@ -4,14 +4,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Type, Sun, Moon, Download, Mail } from "lucide-react"
+import { Type, Sun, Moon, Download, Mail, Video, Square } from "lucide-react"
 import { useTheme } from "next-themes"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import emailjs from '@emailjs/browser'
 import * as THREE from 'three'
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { FontPreviewer } from "./font-previewer"
 
 interface SceneData {
   modelUrl: string;
@@ -54,6 +55,9 @@ interface AppSidebarProps {
   scene: THREE.Scene | null;
   gl: THREE.WebGLRenderer | null;
   onExport: (data: any) => void;
+  isRecording?: boolean
+  onRecordingStart?: () => void
+  onRecordingStop?: () => void
 }
 
 export function AppSidebar({
@@ -81,13 +85,18 @@ export function AppSidebar({
   setSelectedFont,
   scene,
   gl,
-  onExport
+  onExport,
+  isRecording = false,
+  onRecordingStart,
+  onRecordingStop,
 }: AppSidebarProps) {
   const { theme, setTheme } = useTheme()
   const [selectedModel, setSelectedModel] = useState<string>("")
   const [email, setEmail] = useState('')
   const [isExporting, setIsExporting] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [recordingDuration, setRecordingDuration] = useState(0)
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const models = [
     "quarterboard.glb",
@@ -123,6 +132,28 @@ export function AppSidebar({
       setModelUrl(`/models/${selectedModel}`)
     }
   }, [selectedModel, setModelUrl])
+
+  // Handle recording state changes
+  useEffect(() => {
+    if (isRecording) {
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1)
+      }, 1000)
+    } else {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+        recordingTimerRef.current = null
+      }
+      setRecordingDuration(0)
+    }
+  }, [isRecording])
+
+  // Format recording duration
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
 
   const captureScene = async (): Promise<SceneData | null> => {
     if (!scene || !gl) return null;
@@ -353,21 +384,13 @@ export function AppSidebar({
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="font-select" className="text-xs">Font</Label>
-              <Select value={selectedFont} onValueChange={setSelectedFont}>
-                <SelectTrigger id="font-select" className="h-8 text-sm">
-                  <SelectValue placeholder="Select font" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fonts.map((font) => (
-                    <SelectItem key={font} value={font} className="text-sm">
-                      {font.replace(/_/g, ' ').replace(/-/g, ' ').replace('.ttf', '').replace('.typeface.json', '')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Font Previewer component that shows font options with preview */}
+            <FontPreviewer 
+              fonts={fonts}
+              selectedFont={selectedFont}
+              setSelectedFont={setSelectedFont}
+              previewText={text3D || "Sample Text"}
+            />
 
             <div className="space-y-2">
               <Label htmlFor="text-color" className="text-xs">Text Color</Label>
@@ -426,6 +449,38 @@ export function AppSidebar({
                 title="Enable engraving"
               />
               <Label htmlFor="is-engraving" className="text-xs">Enable Engraving</Label>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recording</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Recording Status</Label>
+                <span className={`text-sm ${isRecording ? 'text-red-500' : 'text-gray-500'}`}>
+                  {isRecording ? `Recording: ${formatDuration(recordingDuration)}` : 'Not Recording'}
+                </span>
+              </div>
+              <Button
+                onClick={isRecording ? onRecordingStop : onRecordingStart}
+                className={`w-full ${isRecording ? 'bg-red-500 hover:bg-red-600' : ''}`}
+              >
+                {isRecording ? (
+                  <>
+                    <Square className="mr-2 h-4 w-4" />
+                    Stop Recording
+                  </>
+                ) : (
+                  <>
+                    <Video className="mr-2 h-4 w-4" />
+                    Start Recording
+                  </>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>

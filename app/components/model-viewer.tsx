@@ -1,13 +1,15 @@
 "use client"
 
 import { useRef, useEffect, useState, useMemo } from "react"
-import { useGLTF, OrbitControls, Center, Text3D, Grid, Environment } from "@react-three/drei"
+import { useGLTF, OrbitControls, Center, Text3D, Grid, Environment, Html } from "@react-three/drei"
 import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js"
+import { TTFLoader } from "three/examples/jsm/loaders/TTFLoader.js"
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js"
+import { loadFont } from "@/lib/font-converter"
 
 interface ModelViewerProps {
   modelPath: string
@@ -35,7 +37,16 @@ interface ModelViewerProps {
   textPosition?: { x: number; y: number; z: number }
   textRotation?: { x: number; y: number; z: number }
   textScale?: { x: number; y: number; z: number }
-  text3DOptions?: any
+  text3DOptions?: {
+    size?: number
+    height?: number
+    curveSegments?: number
+    bevelEnabled?: boolean
+    bevelThickness?: number
+    bevelSize?: number
+    bevelOffset?: number
+    bevelSegments?: number
+  }
   textMaterial?: 'standard' | 'emissive' | 'engraved'
   engraveDepth?: number
   isEngraving?: boolean
@@ -47,6 +58,10 @@ interface ModelViewerProps {
   selectedMaterial?: string | null
   materialPreview?: string | null
   onModelLoad?: (info: any) => void
+  overlayText?: string
+  fontSize?: number
+  isRecording?: boolean
+  onRecordingComplete?: (blob: Blob) => void
 }
 
 export function ModelViewer({
@@ -83,10 +98,15 @@ export function ModelViewer({
   uvMapTextOptions,
   selectedMaterial = null,
   materialPreview = null,
-  onModelLoad
+  onModelLoad,
+  overlayText,
+  fontSize,
+  isRecording,
+  onRecordingComplete
 }: ModelViewerProps) {
   const groupRef = useRef<THREE.Group>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isFontLoading, setIsFontLoading] = useState(false)
   const [modelBounds, setModelBounds] = useState<THREE.Box3 | null>(null)
   const { scene: model } = useGLTF(modelPath, true)
   const { camera, scene } = useThree()
@@ -186,20 +206,37 @@ export function ModelViewer({
 
   useEffect(() => {
     if (text3D && scene) {
-      const loader = new FontLoader();
-      const fontPath = `/fonts/${selectedFont}`;
+      // Validate selectedFont value
+      const fontName = selectedFont || "helvetiker_regular.typeface.json";
+      const fontPath = `/fonts/${fontName}`;
       
-      // Add error handling for font loading
-      loader.load(
-        fontPath,
-        (font) => {
+      console.log(`Loading 3D text with font: ${fontName}`);
+      
+      // Set loading state
+      setIsFontLoading(true);
+      
+      // Use our custom font loader that handles both .typeface.json and .ttf formats
+      loadFont(fontPath)
+        .then((font) => {
+          setIsFontLoading(false);
           try {
+            console.log('Creating TextGeometry with options:', {
+              size: text3DOptions?.size || 0.2,
+              height: text3DOptions?.height || 0.05,
+              curveSegments: text3DOptions?.curveSegments || 12,
+              bevelEnabled: Boolean(text3DOptions?.bevelEnabled !== false), // Ensure it's a boolean
+              bevelThickness: text3DOptions?.bevelThickness || 0.03,
+              bevelSize: text3DOptions?.bevelSize || 0.02,
+              bevelOffset: text3DOptions?.bevelOffset || 0,
+              bevelSegments: text3DOptions?.bevelSegments || 5
+            });
+            
             const geometry = new TextGeometry(text3D, {
               font,
               size: text3DOptions?.size || 0.2,
               depth: text3DOptions?.height || 0.05,
               curveSegments: text3DOptions?.curveSegments || 12,
-              bevelEnabled: text3DOptions?.bevelEnabled || true,
+              bevelEnabled: Boolean(text3DOptions?.bevelEnabled !== false), // Ensure it's a boolean
               bevelThickness: text3DOptions?.bevelThickness || 0.03,
               bevelSize: text3DOptions?.bevelSize || 0.02,
               bevelOffset: text3DOptions?.bevelOffset || 0,
@@ -252,15 +289,29 @@ export function ModelViewer({
             setTextMesh(mesh);
           } catch (error) {
             console.error('Error creating text geometry:', error);
-            onFontError?.(error instanceof Error ? error : new Error('Failed to create text geometry'));
+            setIsFontLoading(false);
+            
+            // Try again with the default font
+            if (selectedFont !== 'helvetiker_regular.typeface.json') {
+              console.log('Falling back to default font due to geometry creation error');
+              onFontError?.(new Error('Failed to create text with selected font. Falling back to default font.'));
+            } else {
+              onFontError?.(error instanceof Error ? error : new Error('Failed to create text geometry'));
+            }
           }
-        },
-        undefined,
-        (error) => {
+        })
+        .catch((error) => {
+          setIsFontLoading(false);
           console.error('Error loading font:', error);
-          onFontError?.(error instanceof Error ? error : new Error('Failed to load font'));
-        }
-      );
+          
+          // Try again with the default font
+          if (selectedFont !== 'helvetiker_regular.typeface.json') {
+            console.log('Falling back to default font due to font loading error');
+            onFontError?.(new Error('Failed to load selected font. Falling back to default font.'));
+          } else {
+            onFontError?.(error instanceof Error ? error : new Error('Failed to load font'));
+          }
+        });
     }
   }, [
     text3D,
@@ -312,14 +363,24 @@ export function ModelViewer({
 
         {/* Optional 3D Text */}
         {text3D && (
-          <Text3D
-            font={`/fonts/${selectedFont}`}
-            position={[textPosition.x, textPosition.y, textPosition.z]}
-            scale={[textScale.x, textScale.y, textScale.z]}
-          >
-            {text3D}
-            <meshStandardMaterial color={textColor || "#ffffff"} />
-          </Text3D>
+          <>
+            {isFontLoading ? (
+              <Html position={[textPosition.x, textPosition.y, textPosition.z]}>
+                <div className="text-overlay-3d px-4 py-2 bg-black/70 rounded text-white">
+                  Loading Font...
+                </div>
+              </Html>
+            ) : (
+              <Text3D
+                font={`/fonts/${selectedFont || "helvetiker_regular.typeface.json"}`}
+                position={[textPosition.x, textPosition.y, textPosition.z]}
+                scale={[textScale.x, textScale.y, textScale.z]}
+              >
+                {text3D}
+                <meshStandardMaterial color={textColor || "#ffffff"} />
+              </Text3D>
+            )}
+          </>
         )}
       </group>
       {/* Camera Controls - must be direct child of Canvas */}

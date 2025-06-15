@@ -84,6 +84,77 @@
   }
 }
 
+/* Font face declarations for preview */
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('/fonts/EBGaramond-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('/fonts/EBGaramond-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('/fonts/EBGaramond-Italic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('/fonts/EBGaramond-BoldItalic.ttf') format('truetype');
+  font-weight: bold;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Copperplate';
+  src: url('/fonts/CopperplateCC-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Copperplate';
+  src: url('/fonts/CopperplateCC-Heavy.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Bookman Old Style';
+  src: url('/fonts/Bookman Old Style Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Bookman Old Style';
+  src: url('/fonts/Bookman Old Style Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Bookman Old Style';
+  src: url('/fonts/Bookman Old Style Italic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: italic;
+}
+
+@font-face {
+  font-family: 'Bookman Old Style';
+  src: url('/fonts/Bookman Old Style Bold Italic.ttf') format('truetype');
+  font-weight: bold;
+  font-style: italic;
+}
+
 .text-overlay-3d {
   font-weight: bold;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
