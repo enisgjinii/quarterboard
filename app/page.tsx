@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Moon, Sun, Type } from "lucide-react"
 import { useTheme } from "next-themes"
 import { ModelViewer } from "./components/model-viewer"
-import { ModelViewerDemo } from "./components/model-viewer-demo"
 import { UVMapEditor } from "./components/uv-map-editor"
 import { UVMapExtractor } from "./components/uv-map-extractor"
 import { toast } from "sonner"
+import { Vector3, Euler } from 'three'
 // import { SceneExporterContent } from "./components/scene-exporter"
 
 interface MeshInfo {
@@ -68,6 +68,17 @@ interface SceneContentProps {
   onSceneReady: (scene: THREE.Scene, gl: THREE.WebGLRenderer) => void;
   isRecording: boolean;
   onRecordingComplete: (blob: Blob) => void;
+  decalSplatters: DecalSplatter[];
+  onAddDecal: (position: THREE.Vector3, normal: THREE.Vector3) => void;
+}
+
+interface DecalSplatter {
+  position: Vector3;
+  rotation: Euler;
+  scale: Vector3;
+  color: string;
+  size: number;
+  texture?: string;
 }
 
 // Create a new component that uses useThree
@@ -94,7 +105,9 @@ function SceneContent({
   uvMapTextOptions,
   onSceneReady,
   isRecording,
-  onRecordingComplete
+  onRecordingComplete,
+  decalSplatters,
+  onAddDecal
 }: SceneContentProps) {
   const { scene, gl } = useThree();
   
@@ -148,6 +161,7 @@ function SceneContent({
         uvMapTextOptions={uvMapTextOptions}
         isRecording={isRecording}
         onRecordingComplete={onRecordingComplete}
+        decalSplatters={decalSplatters}
       />
       {/* <SceneExporterContent />   */}
     </>
@@ -283,6 +297,32 @@ export default function Component() {
     }
   }, [isRecording])
 
+  const [decalSplatters, setDecalSplatters] = useState<DecalSplatter[]>([]);
+  const [isPlacingDecal, setIsPlacingDecal] = useState(false);
+
+  const handleAddDecal = useCallback((position: THREE.Vector3, normal: THREE.Vector3) => {
+    if (!isPlacingDecal) {
+      setIsPlacingDecal(true);
+      return;
+    }
+
+    // Create rotation that aligns with the surface normal
+    const rotation = new THREE.Euler();
+    const quaternion = new THREE.Quaternion();
+    quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+    rotation.setFromQuaternion(quaternion);
+
+    const newSplatter: DecalSplatter = {
+      position,
+      rotation,
+      scale: new Vector3(1, 1, 1),
+      color: "#ff0000",
+      size: 1
+    };
+    setDecalSplatters([...decalSplatters, newSplatter]);
+    setIsPlacingDecal(false);
+  }, [decalSplatters, isPlacingDecal]);
+
   const sidebarProps = {
     modelUrl,
     setModelUrl,
@@ -313,7 +353,10 @@ export default function Component() {
     },
     isRecording,
     onRecordingStart: handleRecordingStart,
-    onRecordingStop: handleRecordingStop
+    onRecordingStop: handleRecordingStop,
+    decalSplatters,
+    setDecalSplatters,
+    onAddDecal: handleAddDecal
   };
 
   const handleUVTextUpdate = (text: string, options: any) => {
@@ -400,9 +443,16 @@ export default function Component() {
               onSceneReady={handleSceneReady}
               isRecording={isRecording}
               onRecordingComplete={handleRecordingComplete}
+              decalSplatters={decalSplatters}
+              onAddDecal={handleAddDecal}
             />
           </Suspense>
         </Canvas>
+        {isPlacingDecal && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded">
+            Click on the model to place decal
+          </div>
+        )}
       </div>
 
       {/* UV Map Extractor */}
