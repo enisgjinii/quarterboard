@@ -109,8 +109,103 @@ export function ModelViewer({
   const [isFontLoading, setIsFontLoading] = useState(false)
   const [modelBounds, setModelBounds] = useState<THREE.Box3 | null>(null)
   const { scene: model } = useGLTF(modelPath, true)
-  const { camera, scene } = useThree()
+  const { camera, scene, gl } = useThree()
   const [textMesh, setTextMesh] = useState<THREE.Mesh | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
+  const controlsRef = useRef<any>(null)
+
+  // Add recording indicator style and badge
+  useEffect(() => {
+    const canvas = gl.domElement
+    const container = canvas.parentElement
+    
+    if (isRecording) {
+      // Enhanced border effect
+      canvas.style.border = '2px solid #ef4444'
+      canvas.style.borderRadius = '4px'
+      canvas.style.transition = 'border 0.2s ease-in-out'
+      canvas.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.3)'
+
+      // Add recording badge
+      const badge = document.createElement('div')
+      badge.id = 'recording-badge'
+      badge.style.cssText = `
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background-color: #ef4444;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        z-index: 1000;
+        animation: pulse 2s infinite;
+      `
+      
+      // Add recording dot
+      const dot = document.createElement('div')
+      dot.style.cssText = `
+        width: 8px;
+        height: 8px;
+        background-color: white;
+        border-radius: 50%;
+        animation: blink 1s infinite;
+      `
+      
+      badge.appendChild(dot)
+      badge.appendChild(document.createTextNode('REC'))
+      container?.appendChild(badge)
+
+      // Add keyframes for animations
+      const style = document.createElement('style')
+      style.textContent = `
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        @keyframes blink {
+          0% { opacity: 1; }
+          50% { opacity: 0.3; }
+          100% { opacity: 1; }
+        }
+      `
+      document.head.appendChild(style)
+    } else {
+      // Remove recording styles
+      canvas.style.border = 'none'
+      canvas.style.boxShadow = 'none'
+      
+      // Remove recording badge
+      const badge = document.getElementById('recording-badge')
+      badge?.remove()
+    }
+
+    // Cleanup
+    return () => {
+      canvas.style.border = 'none'
+      canvas.style.boxShadow = 'none'
+      const badge = document.getElementById('recording-badge')
+      badge?.remove()
+    }
+  }, [isRecording, gl])
+
+  // Auto-rotation during recording
+  useFrame((state, delta) => {
+    if (isRecording && controlsRef.current) {
+      // Rotate the camera around the scene
+      controlsRef.current.autoRotate = true
+      controlsRef.current.autoRotateSpeed = 2.0 // Adjust speed as needed
+    } else if (controlsRef.current) {
+      controlsRef.current.autoRotate = false
+    }
+  })
 
   // Calculate optimal grid size based on model bounds
   const calculateGridSize = (bounds: THREE.Box3 | null) => {
@@ -343,6 +438,56 @@ export function ModelViewer({
     }
   }, [uvMapTexture, uvMapText, model]);
 
+  // Handle recording
+  useEffect(() => {
+    if (isRecording) {
+      // Create a canvas stream from the WebGL renderer
+      const canvas = gl.domElement
+      streamRef.current = canvas.captureStream(30) // 30 FPS
+      
+      // Create MediaRecorder
+      mediaRecorderRef.current = new MediaRecorder(streamRef.current, {
+        mimeType: 'video/webm;codecs=vp9',
+        videoBitsPerSecond: 5000000 // 5 Mbps
+      })
+
+      // Handle data available
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data)
+        }
+      }
+
+      // Handle recording stop
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'video/webm' })
+        chunksRef.current = []
+        onRecordingComplete?.(blob)
+      }
+
+      // Start recording
+      mediaRecorderRef.current.start()
+    } else if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      // Stop recording
+      mediaRecorderRef.current.stop()
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+      }
+    }
+
+    // Cleanup
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop()
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+      }
+    }
+  }, [isRecording, gl, onRecordingComplete])
+
   if (isLoading) {
     return null
   }
@@ -385,6 +530,7 @@ export function ModelViewer({
       </group>
       {/* Camera Controls - must be direct child of Canvas */}
       <OrbitControls
+        ref={controlsRef}
         enableDamping={true}
         dampingFactor={0.1}
         enableZoom={true}

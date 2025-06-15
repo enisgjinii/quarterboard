@@ -136,15 +136,25 @@ export function AppSidebar({
   // Handle recording state changes
   useEffect(() => {
     if (isRecording) {
+      // Start timer
       recordingTimerRef.current = setInterval(() => {
         setRecordingDuration(prev => prev + 1)
       }, 1000)
     } else {
+      // Stop timer and reset duration
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current)
         recordingTimerRef.current = null
       }
       setRecordingDuration(0)
+    }
+
+    // Cleanup
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+        recordingTimerRef.current = null
+      }
     }
   }, [isRecording])
 
@@ -468,6 +478,7 @@ export function AppSidebar({
               <Button
                 onClick={isRecording ? onRecordingStop : onRecordingStart}
                 className={`w-full ${isRecording ? 'bg-red-500 hover:bg-red-600' : ''}`}
+                disabled={!onRecordingStart || !onRecordingStop}
               >
                 {isRecording ? (
                   <>
