@@ -11,6 +11,7 @@ import { useTheme } from "next-themes"
 import { ModelViewer } from "./components/model-viewer"
 import { ModelViewerDemo } from "./components/model-viewer-demo"
 import { UVMapEditor } from "./components/uv-map-editor"
+import { UVMapExtractor } from "./components/uv-map-extractor"
 import { toast } from "sonner"
 // import { SceneExporterContent } from "./components/scene-exporter"
 
@@ -402,6 +403,19 @@ export default function Component() {
             />
           </Suspense>
         </Canvas>
+      </div>
+
+      {/* UV Map Extractor */}
+      <div className="absolute bottom-4 right-4 w-80">
+        <UVMapExtractor
+          scene={scene}
+          onExtract={(uvMap) => {
+            setUvMapTexture(uvMap)
+          }}
+          onTextureUpdate={(texture) => {
+            setUvMapTexture(texture)
+          }}
+        />
       </div>
     </div>
   )

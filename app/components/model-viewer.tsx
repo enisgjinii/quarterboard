@@ -252,31 +252,62 @@ export function ModelViewer({
     }
   }, [model, modelBounds, onModelLoad])
 
-  // Clone and prepare the model with materials
-  const preparedScene = useMemo(() => {
-    const clone = model.clone(true)
-    clone.traverse((node) => {
-      if (node instanceof THREE.Mesh) {
-        if (Array.isArray(node.material)) {
-          node.material = node.material.map(mat => 
-            new THREE.MeshStandardMaterial({
-              ...mat,
-              color: new THREE.Color(color)
-            })
-          )
-        } else {
-          node.material = new THREE.MeshStandardMaterial({
-            ...node.material,
-            color: new THREE.Color(color)
-          })
-        }
-      }
-    })
-    return clone
-  }, [model, color])
-
+  // Handle UV texture updates
   useEffect(() => {
-    if (model) {
+    if (uvMapTexture && model) {
+      const textureLoader = new THREE.TextureLoader()
+      textureLoader.load(uvMapTexture, (texture) => {
+        // Configure texture settings
+        texture.colorSpace = THREE.SRGBColorSpace
+        texture.flipY = false // Important for UV maps
+        texture.wrapS = THREE.ClampToEdgeWrapping
+        texture.wrapT = THREE.ClampToEdgeWrapping
+        texture.needsUpdate = true
+        
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            // Create new material with texture
+            const material = new THREE.MeshStandardMaterial({
+              map: texture,
+              metalness: 0.5,
+              roughness: 0.5,
+              side: THREE.DoubleSide, // Show both sides of the mesh
+              transparent: true,
+              opacity: 1.0
+            })
+            
+            // Apply material to mesh
+            child.material = material
+            
+            // Ensure UV coordinates are properly set
+            if (child.geometry) {
+              const uvAttribute = child.geometry.getAttribute('uv')
+              if (uvAttribute) {
+                // Normalize UV coordinates if needed
+                for (let i = 0; i < uvAttribute.count; i++) {
+                  const u = uvAttribute.getX(i)
+                  const v = uvAttribute.getY(i)
+                  uvAttribute.setXY(i, u, 1 - v) // Flip V coordinate if needed
+                }
+                uvAttribute.needsUpdate = true
+              }
+            }
+          }
+        })
+
+        // Force a render update
+        if (gl) {
+          gl.render(scene, camera)
+        }
+      }, undefined, (error) => {
+        console.error('Error loading texture:', error)
+      })
+    }
+  }, [uvMapTexture, model, scene, camera, gl])
+
+  // Prevent material override when UV texture is present
+  useEffect(() => {
+    if (model && !uvMapTexture) {
       model.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           if (selectedMaterial && materialPreview) {
@@ -297,7 +328,44 @@ export function ModelViewer({
         }
       });
     }
-  }, [model, color, selectedMaterial, materialPreview]);
+  }, [model, color, selectedMaterial, materialPreview, uvMapTexture]);
+
+  // Clone and prepare the model with materials
+  const preparedScene = useMemo(() => {
+    const clone = model.clone(true)
+    clone.traverse((node) => {
+      if (node instanceof THREE.Mesh) {
+        // Create new material with proper settings
+        const material = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(color),
+          metalness: 0.5,
+          roughness: 0.5,
+          side: THREE.DoubleSide
+        })
+
+        if (Array.isArray(node.material)) {
+          node.material = node.material.map(() => material)
+        } else {
+          node.material = material
+        }
+
+        // Ensure proper UV mapping
+        if (node.geometry) {
+          const uvAttribute = node.geometry.getAttribute('uv')
+          if (uvAttribute) {
+            // Normalize UV coordinates if needed
+            for (let i = 0; i < uvAttribute.count; i++) {
+              const u = uvAttribute.getX(i)
+              const v = uvAttribute.getY(i)
+              uvAttribute.setXY(i, u, 1 - v) // Flip V coordinate if needed
+            }
+            uvAttribute.needsUpdate = true
+          }
+        }
+      }
+    })
+    return clone
+  }, [model, color])
 
   useEffect(() => {
     if (text3D && scene) {
@@ -422,21 +490,6 @@ export function ModelViewer({
     selectedFont,
     onFontError
   ]);
-
-  useEffect(() => {
-    if (uvMapTexture && uvMapText && model) {
-      const textureLoader = new THREE.TextureLoader();
-      textureLoader.load(uvMapTexture, (texture) => {
-        model.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            const material = child.material as THREE.MeshStandardMaterial;
-            material.map = texture;
-            material.needsUpdate = true;
-          }
-        });
-      });
-    }
-  }, [uvMapTexture, uvMapText, model]);
 
   // Handle recording
   useEffect(() => {

@@ -13,6 +13,7 @@ import * as THREE from 'three'
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FontPreviewer } from "./font-previewer"
+import { UVMapExtractor } from "./uv-map-extractor"
 
 interface SceneData {
   modelUrl: string;
@@ -536,6 +537,15 @@ export function AppSidebar({
             </div>
           </CardContent>
         </Card>
+
+        {/* Add UV Map Extractor */}
+        <UVMapExtractor
+          scene={scene}
+          onExtract={(uvMap) => {
+            // Handle the extracted UV map
+            console.log('UV Map extracted:', uvMap)
+          }}
+        />
       </div>
     </div>
   )
