@@ -72,11 +72,14 @@ export function BabylonScene({
       "camera",
       0,
       Math.PI / 3,
-      10,
+      15,
       Vector3.Zero(),
       scene
     );
     camera.attachControl(canvasRef.current, true);
+    camera.lowerBetaLimit = 0.1;
+    camera.upperBetaLimit = Math.PI / 2;
+    camera.wheelPrecision = 50;
 
     // Create light
     const light = new HemisphericLight(
@@ -95,6 +98,7 @@ export function BabylonScene({
     const groundMaterial = new StandardMaterial("groundMaterial", scene);
     groundMaterial.diffuseColor = new Color3(0.2, 0.2, 0.2);
     ground.material = groundMaterial;
+    ground.position.y = -0.01;
 
     // Create axes helper
     const axesHelper = MeshBuilder.CreateLines(
