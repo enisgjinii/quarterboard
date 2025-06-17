@@ -1,19 +1,14 @@
 "use client"
 
 import { Suspense, useState, useEffect, useCallback } from "react"
-import { Canvas, useThree } from "@react-three/fiber"
-import { OrbitControls, Environment, Html, PerspectiveCamera, Stats } from "@react-three/drei"
-import * as THREE from 'three'
 import { AppSidebar } from "./components/app-sidebar"
 import { Button } from "@/components/ui/button"
-import { Moon, Sun, Type } from "lucide-react"
+import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-import { ModelViewer } from "./components/model-viewer"
-import { UVMapEditor } from "./components/uv-map-editor"
-import { UVMapExtractor } from "./components/uv-map-extractor"
 import { toast } from "sonner"
-import { Vector3, Euler } from 'three'
-// import { SceneExporterContent } from "./components/scene-exporter"
+import { BabylonScene } from "./components/babylon-scene"
+import { BabylonModelLoader } from "./components/babylon-model-loader"
+import { Scene } from "@babylonjs/core"
 
 interface MeshInfo {
   name: string
@@ -44,130 +39,6 @@ const models = [
   "The Shangri-La.glb",
 ];
 
-interface SceneContentProps {
-  modelUrl: string;
-  modelColor: string;
-  handleModelLoad: (info: any) => void;
-  selectedMaterial: string | null;
-  materialPreview: string | null;
-  isPreviewMode: boolean;
-  text3D: string;
-  textColor: string;
-  textPosition: { x: number; y: number; z: number };
-  textRotation: { x: number; y: number; z: number };
-  textScale: { x: number; y: number; z: number };
-  text3DOptions: any;
-  textMaterial: 'standard' | 'emissive' | 'engraved';
-  engraveDepth: number;
-  isEngraving: boolean;
-  selectedFont: string;
-  onFontError: (error: Error) => void;
-  uvMapTexture: string | null;
-  uvMapText: string;
-  uvMapTextOptions: any;
-  onSceneReady: (scene: THREE.Scene, gl: THREE.WebGLRenderer) => void;
-  isRecording: boolean;
-  onRecordingComplete: (blob: Blob) => void;
-  decalSplatters: DecalSplatter[];
-  onAddDecal: (position: THREE.Vector3, normal: THREE.Vector3) => void;
-}
-
-interface DecalSplatter {
-  position: Vector3;
-  rotation: Euler;
-  scale: Vector3;
-  color: string;
-  size: number;
-  texture?: string;
-}
-
-// Create a new component that uses useThree
-function SceneContent({
-  modelUrl,
-  modelColor,
-  handleModelLoad,
-  selectedMaterial,
-  materialPreview,
-  isPreviewMode,
-  text3D,
-  textColor,
-  textPosition,
-  textRotation,
-  textScale,
-  text3DOptions,
-  textMaterial,
-  engraveDepth,
-  isEngraving,
-  selectedFont,
-  onFontError,
-  uvMapTexture,
-  uvMapText,
-  uvMapTextOptions,
-  onSceneReady,
-  isRecording,
-  onRecordingComplete,
-  decalSplatters,
-  onAddDecal
-}: SceneContentProps) {
-  const { scene, gl } = useThree();
-  
-  useEffect(() => {
-    onSceneReady(scene, gl);
-  }, [scene, gl, onSceneReady]);
-
-  const handleFontError = useCallback((error: Error) => {
-    console.error('Font error:', error);
-    // Fallback to default font
-    if (selectedFont !== 'helvetiker_regular.typeface.json') {
-      onFontError(new Error('Failed to load selected font. Falling back to default font.'));
-    }
-  }, [selectedFont, onFontError]);
-
-  return (
-    <>
-      <mesh>
-        <gridHelper args={[50, 50, '#666666', '#444444']} />
-      </mesh>
-      <axesHelper args={[5]} />
-      {/* Center point markers */}
-      <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[0.05, 16, 16]} />
-        <meshBasicMaterial color="red" />
-      </mesh>
-      <mesh position={[0, 0.01, 0]}>
-        <boxGeometry args={[0.1, 0.01, 0.1]} />
-        <meshBasicMaterial color="yellow" transparent opacity={0.5} />
-      </mesh>
-      <ModelViewer
-        modelPath={modelUrl}
-        color={modelColor}
-        onModelLoad={handleModelLoad}
-        selectedMaterial={selectedMaterial}
-        materialPreview={materialPreview}
-        isPreviewMode={isPreviewMode}
-        text3D={text3D}
-        textColor={textColor}
-        textPosition={textPosition}
-        textRotation={textRotation}
-        textScale={textScale}
-        text3DOptions={text3DOptions}
-        textMaterial={textMaterial}
-        engraveDepth={engraveDepth}
-        isEngraving={isEngraving}
-        selectedFont={selectedFont}
-        onFontError={handleFontError}
-        uvMapTexture={uvMapTexture || undefined}
-        uvMapText={uvMapText}
-        uvMapTextOptions={uvMapTextOptions}
-        isRecording={isRecording}
-        onRecordingComplete={onRecordingComplete}
-        decalSplatters={decalSplatters}
-      />
-      {/* <SceneExporterContent />   */}
-    </>
-  );
-}
-
 export default function Component() {
   const [selectedModel, setSelectedModel] = useState(models[Math.floor(Math.random() * models.length)]);
   const [modelUrl, setModelUrl] = useState(`/models/${selectedModel}`);
@@ -180,12 +51,9 @@ export default function Component() {
   const [materialPreview, setMaterialPreview] = useState<string | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   
-  // 3D Text states - Centered at origin by default
-  const [overlayText, setOverlayText] = useState("")
-  const [materialText, setMaterialText] = useState("")
+  // 3D Text states
   const [text3D, setText3D] = useState("SAMPLE")
   const [textColor, setTextColor] = useState("#000000")
-  const [fontSize, setFontSize] = useState(1)
   const [textPosition, setTextPosition] = useState({ x: 0, y: 0, z: 0 })
   const [textRotation, setTextRotation] = useState({ x: 0, y: 0, z: 0 })
   const [textScale, setTextScale] = useState({ x: 1, y: 1, z: 1 })
@@ -217,12 +85,10 @@ export default function Component() {
 
   const { theme, setTheme } = useTheme()
 
-  const [scene, setScene] = useState<THREE.Scene | null>(null);
-  const [gl, setGl] = useState<THREE.WebGLRenderer | null>(null);
+  const [scene, setScene] = useState<Scene | null>(null);
 
-  const handleSceneReady = useCallback((newScene: THREE.Scene, newGl: THREE.WebGLRenderer) => {
+  const handleSceneReady = useCallback((newScene: Scene) => {
     setScene(newScene);
-    setGl(newGl);
   }, []);
 
   useEffect(() => {
@@ -231,6 +97,7 @@ export default function Component() {
 
   const handleModelLoad = (info: any) => {
     setModelLoaded(true)
+    setMeshInfo([info])
   }
 
   // Update modelUrl when selectedModel changes
@@ -245,130 +112,9 @@ export default function Component() {
   const [isRecording, setIsRecording] = useState(false)
   const [recordedVideo, setRecordedVideo] = useState<Blob | null>(null)
 
-  // Handle recording start
-  const handleRecordingStart = useCallback(() => {
-    try {
-      setIsRecording(true)
-      toast.info('Recording started')
-    } catch (error) {
-      console.error('Error starting recording:', error)
-      toast.error('Failed to start recording')
-      setIsRecording(false)
-    }
-  }, [])
-
-  // Handle recording stop
-  const handleRecordingStop = useCallback(() => {
-    try {
-      setIsRecording(false)
-      toast.info('Recording stopped')
-    } catch (error) {
-      console.error('Error stopping recording:', error)
-      toast.error('Failed to stop recording')
-    }
-  }, [])
-
-  // Handle recording complete
-  const handleRecordingComplete = useCallback((blob: Blob) => {
-    try {
-      setRecordedVideo(blob)
-      // Create download link
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `quarterboard-recording-${new Date().toISOString()}.webm`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      toast.success('Recording saved successfully!')
-    } catch (error) {
-      console.error('Error saving recording:', error)
-      toast.error('Failed to save recording')
-    }
-  }, [])
-
-  // Cleanup recording state on unmount
-  useEffect(() => {
-    return () => {
-      if (isRecording) {
-        setIsRecording(false)
-      }
-    }
-  }, [isRecording])
-
-  const [decalSplatters, setDecalSplatters] = useState<DecalSplatter[]>([]);
-  const [isPlacingDecal, setIsPlacingDecal] = useState(false);
-
-  const handleAddDecal = useCallback((position: THREE.Vector3, normal: THREE.Vector3) => {
-    if (!isPlacingDecal) {
-      setIsPlacingDecal(true);
-      return;
-    }
-
-    // Create rotation that aligns with the surface normal
-    const rotation = new THREE.Euler();
-    const quaternion = new THREE.Quaternion();
-    quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-    rotation.setFromQuaternion(quaternion);
-
-    const newSplatter: DecalSplatter = {
-      position,
-      rotation,
-      scale: new Vector3(1, 1, 1),
-      color: "#ff0000",
-      size: 1
-    };
-    setDecalSplatters([...decalSplatters, newSplatter]);
-    setIsPlacingDecal(false);
-  }, [decalSplatters, isPlacingDecal]);
-
-  const sidebarProps = {
-    modelUrl,
-    setModelUrl,
-    modelColor,
-    setModelColor,
-    text3D,
-    setText3D,
-    textColor,
-    setTextColor,
-    textPosition,
-    setTextPosition,
-    textRotation,
-    setTextRotation,
-    textScale,
-    setTextScale,
-    textMaterial,
-    setTextMaterial,
-    engraveDepth,
-    setEngraveDepth,
-    isEngraving,
-    setIsEngraving,
-    selectedFont,
-    setSelectedFont,
-    scene,
-    gl,
-    onExport: (data: any) => {
-      console.log('Scene exported:', data);
-    },
-    isRecording,
-    onRecordingStart: handleRecordingStart,
-    onRecordingStop: handleRecordingStop,
-    decalSplatters,
-    setDecalSplatters,
-    onAddDecal: handleAddDecal
-  };
-
-  const handleUVTextUpdate = (text: string, options: any) => {
-    setUvMapText(text)
-    setUvMapTextOptions(options)
-  }
-
   const handleFontError = useCallback((error: Error) => {
     console.error('Font error:', error);
-    // Fallback to default font
     if (selectedFont !== 'helvetiker_regular.typeface.json') {
-      setSelectedFont('helvetiker_regular.typeface.json');
       toast.error('Failed to load selected font. Falling back to default font.');
     }
   }, [selectedFont]);
@@ -378,51 +124,66 @@ export default function Component() {
   }
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden">
-      {/* Left Sidebar */}
-      <div className="w-72 border-r bg-background flex-shrink-0">
-        <AppSidebar {...sidebarProps} />
-      </div>
-
-      {/* Main Content */}
+    <div className="flex h-screen">
+      <AppSidebar
+        selectedModel={selectedModel}
+        setSelectedModel={setSelectedModel}
+        modelColor={modelColor}
+        setModelColor={setModelColor}
+        meshInfo={meshInfo}
+        selectedMaterial={selectedMaterial}
+        setSelectedMaterial={setSelectedMaterial}
+        materialPreview={materialPreview}
+        setMaterialPreview={setMaterialPreview}
+        isPreviewMode={isPreviewMode}
+        setIsPreviewMode={setIsPreviewMode}
+        text3D={text3D}
+        setText3D={setText3D}
+        textColor={textColor}
+        setTextColor={setTextColor}
+        textPosition={textPosition}
+        setTextPosition={setTextPosition}
+        textRotation={textRotation}
+        setTextRotation={setTextRotation}
+        textScale={textScale}
+        setTextScale={setTextScale}
+        text3DOptions={text3DOptions}
+        setText3DOptions={setText3DOptions}
+        textMaterial={textMaterial}
+        setTextMaterial={setTextMaterial}
+        engraveDepth={engraveDepth}
+        setEngraveDepth={setEngraveDepth}
+        isEngraving={isEngraving}
+        setIsEngraving={setIsEngraving}
+        selectedFont={selectedFont}
+        setSelectedFont={setSelectedFont}
+        uvMapTexture={uvMapTexture}
+        setUvMapTexture={setUvMapTexture}
+        uvMapText={uvMapText}
+        setUvMapText={setUvMapText}
+        uvMapTextOptions={uvMapTextOptions}
+        setUvMapTextOptions={setUvMapTextOptions}
+        isRecording={isRecording}
+        setIsRecording={setIsRecording}
+        recordedVideo={recordedVideo}
+        setRecordedVideo={setRecordedVideo}
+      />
       <div className="flex-1 relative">
-        <Canvas 
-          camera={{ 
-            position: [0, 2, 6],
-            fov: 45,
-            near: 0.1,
-            far: 1000
-          }}
-          gl={{ 
-            antialias: true,
-            alpha: true
-          }}
-          onCreated={({ gl }) => {
-            gl.setClearColor('#000000', 0);
-          }}
-        >
-          <OrbitControls 
-            enableDamping={true} 
-            dampingFactor={0.1} 
-            enableZoom={true} 
-            zoomSpeed={0.8} 
-            enablePan={true} 
-            panSpeed={0.5} 
-            enableRotate={true} 
-            rotateSpeed={0.5} 
-            minDistance={0.1} 
-            maxDistance={200} 
-            target={[0, 0, 0]} 
-          />
-          <Suspense fallback={
-            <Html center>
-              <div className="text-white">Loading model...</div>
-            </Html>
-          }>
-            <SceneContent
+        <div className="absolute top-4 right-4 z-10">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+        </div>
+        <div className="w-full h-full">
+          <Suspense fallback={<div>Loading...</div>}>
+            <BabylonScene
               modelUrl={modelUrl}
               modelColor={modelColor}
-              handleModelLoad={handleModelLoad}
+              onModelLoad={handleModelLoad}
               selectedMaterial={selectedMaterial}
               materialPreview={materialPreview}
               isPreviewMode={isPreviewMode}
@@ -442,30 +203,10 @@ export default function Component() {
               uvMapTextOptions={uvMapTextOptions}
               onSceneReady={handleSceneReady}
               isRecording={isRecording}
-              onRecordingComplete={handleRecordingComplete}
-              decalSplatters={decalSplatters}
-              onAddDecal={handleAddDecal}
+              onRecordingComplete={(blob) => setRecordedVideo(blob)}
             />
           </Suspense>
-        </Canvas>
-        {isPlacingDecal && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded">
-            Click on the model to place decal
-          </div>
-        )}
-      </div>
-
-      {/* UV Map Extractor */}
-      <div className="absolute bottom-4 right-4 w-80">
-        <UVMapExtractor
-          scene={scene}
-          onExtract={(uvMap) => {
-            setUvMapTexture(uvMap)
-          }}
-          onTextureUpdate={(texture) => {
-            setUvMapTexture(texture)
-          }}
-        />
+        </div>
       </div>
     </div>
   )
