@@ -2,100 +2,264 @@
 
 import { useRef, useEffect, useState, useMemo } from "react"
 import { useGLTF, OrbitControls, Center, Text3D, Grid, Environment, Html } from "@react-three/drei"
-import { useFrame, useThree, ThreeEvent } from "@react-three/fiber"
+import { useFrame, useThree } from "@react-three/fiber"
 import * as THREE from "three"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js"
 import { TTFLoader } from "three/examples/jsm/loaders/TTFLoader.js"
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js"
-import { DecalGeometry } from 'three/examples/jsm/geometries/DecalGeometry.js'
 import { loadFont } from "@/lib/font-converter"
-import { EffectComposer, Outline, Selection } from '@react-three/postprocessing'
-import { BlendFunction } from 'postprocessing'
-import { Canvas } from '@react-three/fiber'
 
-interface DecalSplatter {
-  position: THREE.Vector3;
-  rotation: THREE.Euler;
-  scale: THREE.Vector3;
-  color: string;
-  size: number;
-  texture?: string;
+interface ModelViewerProps {
+  modelPath: string
+  color?: string
+  borderColor?: string
+  colorMode?: 'solid' | 'textTexture' | 'mixed'
+  isPreviewMode?: boolean
+  materialText?: string
+  materialTextOptions?: {
+    fontSize: number
+    fontFamily: string
+    textColor: string
+    backgroundColor: string
+    width: number
+    height: number
+    padding: number
+  }
+  targetMeshName?: string
+  textureRepeat?: {
+    u: number
+    v: number
+  }
+  text3D?: string
+  textColor?: string
+  textPosition?: { x: number; y: number; z: number }
+  textRotation?: { x: number; y: number; z: number }
+  textScale?: { x: number; y: number; z: number }
+  text3DOptions?: {
+    size?: number
+    height?: number
+    curveSegments?: number
+    bevelEnabled?: boolean
+    bevelThickness?: number
+    bevelSize?: number
+    bevelOffset?: number
+    bevelSegments?: number
+  }
+  textMaterial?: 'standard' | 'emissive' | 'engraved'
+  engraveDepth?: number
+  isEngraving?: boolean
+  selectedFont?: string
+  onFontError?: (error: Error) => void
+  uvMapTexture?: string
+  uvMapText?: string
+  uvMapTextOptions?: any
+  selectedMaterial?: string | null
+  materialPreview?: string | null
+  onModelLoad?: (info: any) => void
+  overlayText?: string
+  fontSize?: number
+  isRecording?: boolean
+  onRecordingComplete?: (blob: Blob) => void
 }
 
-interface BaseProps {
-  modelPath: string;
-  text3D?: string;
-  textPosition?: { x: number; y: number; z: number };
-  textScale?: { x: number; y: number; z: number };
-  textColor?: string;
-  selectedFont?: string;
-  isFontLoading: boolean;
-  onFontError?: (error: Error) => void;
-  onAddDecal?: (position: THREE.Vector3, normal: THREE.Vector3) => void;
-}
+export function ModelViewer({
+  modelPath,
+  color = "#ffffff",
+  borderColor = "#ffffff",
+  colorMode = 'solid',
+  isPreviewMode = false,
+  materialText = "",
+  materialTextOptions = {
+    fontSize: 1,
+    fontFamily: "helvetiker_regular.typeface.json",
+    textColor: "#ffffff",
+    backgroundColor: "#000000",
+    width: 1,
+    height: 1,
+    padding: 0
+  },
+  targetMeshName = "",
+  textureRepeat = { u: 1, v: 1 },
+  text3D = "",
+  textColor = "#ffffff",
+  textPosition = { x: 0, y: 0.5, z: 0 },
+  textRotation = { x: 0, y: 0, z: 0 },
+  textScale = { x: 1.2, y: 1.2, z: 1.2 },
+  text3DOptions,
+  textMaterial = 'standard',
+  engraveDepth = 0.02,
+  isEngraving = false,
+  selectedFont = "helvetiker_regular.typeface.json",
+  onFontError,
+  uvMapTexture,
+  uvMapText = "",
+  uvMapTextOptions,
+  selectedMaterial = null,
+  materialPreview = null,
+  onModelLoad,
+  overlayText,
+  fontSize,
+  isRecording,
+  onRecordingComplete
+}: ModelViewerProps) {
+  const groupRef = useRef<THREE.Group>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isFontLoading, setIsFontLoading] = useState(false)
+  const [modelBounds, setModelBounds] = useState<THREE.Box3 | null>(null)
+  const { scene: model } = useGLTF(modelPath, true)
+  const { camera, scene } = useThree()
+  const [textMesh, setTextMesh] = useState<THREE.Mesh | null>(null)
 
-interface ModelViewerProps extends BaseProps {
-  decalSplatters?: DecalSplatter[];
-}
+  // Calculate optimal grid size based on model bounds
+  const calculateGridSize = (bounds: THREE.Box3 | null) => {
+    if (!bounds) return 10
+    const size = bounds.getSize(new THREE.Vector3())
+    const maxDimension = Math.max(size.x, size.y, size.z)
+    return Math.ceil(maxDimension * 2)
+  }
 
-interface SceneContentProps extends BaseProps {
-  decalSplatters: DecalSplatter[];
-}
+  // Re-center and resize the camera when the model changes
+  useEffect(() => {
+    if (model) {
+      const box = new THREE.Box3().setFromObject(model)
+      setModelBounds(box)
+      
+      const size = box.getSize(new THREE.Vector3())
+      const center = box.getCenter(new THREE.Vector3())
+      
+      // Center the model at origin
+      model.position.sub(center)
+      
+      // Update camera position
+      const maxDim = Math.max(size.x, size.y, size.z)
+      if (camera instanceof THREE.PerspectiveCamera) {
+        const fov = camera.fov * (Math.PI / 180)
+        const cameraZ = Math.abs(maxDim / Math.tan(fov / 2)) * 2
+        camera.position.set(maxDim, maxDim * 0.8, maxDim * 1.5)
+        camera.lookAt(0, 0, 0)
+        camera.updateProjectionMatrix()
+      }
+    }
+  }, [model, camera])
 
-export function ModelViewer(props: ModelViewerProps) {
-  const groupRef = useRef<THREE.Group>(null);
-  const controlsRef = useRef<any>(null);
-  const { scene: model } = useGLTF(props.modelPath, true);
-  const { camera, scene, gl } = useThree();
-  const [textMesh, setTextMesh] = useState<THREE.Mesh | null>(null);
-  const [fontLoading, setFontLoading] = useState(props.isFontLoading);
+  // Handle model loading
+  useEffect(() => {
+    if (model) {
+      setIsLoading(false)
+      if (onModelLoad) {
+        onModelLoad({
+          model,
+          bounds: modelBounds
+        })
+      }
+    }
+  }, [model, modelBounds, onModelLoad])
+
+  // Clone and prepare the model with materials
+  const preparedScene = useMemo(() => {
+    const clone = model.clone(true)
+    clone.traverse((node) => {
+      if (node instanceof THREE.Mesh) {
+        if (Array.isArray(node.material)) {
+          node.material = node.material.map(mat => 
+            new THREE.MeshStandardMaterial({
+              ...mat,
+              color: new THREE.Color(color)
+            })
+          )
+        } else {
+          node.material = new THREE.MeshStandardMaterial({
+            ...node.material,
+            color: new THREE.Color(color)
+          })
+        }
+      }
+    })
+    return clone
+  }, [model, color])
 
   useEffect(() => {
-    if (props.text3D && scene) {
-      const fontName = props.selectedFont || "helvetiker_regular.typeface.json";
+    if (model) {
+      model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          if (selectedMaterial && materialPreview) {
+            const material = new THREE.MeshStandardMaterial({
+              color: materialPreview,
+              metalness: 0.5,
+              roughness: 0.5
+            });
+            child.material = material;
+          } else {
+            const material = new THREE.MeshStandardMaterial({
+              color: color,
+              metalness: 0.5,
+              roughness: 0.5
+            });
+            child.material = material;
+          }
+        }
+      });
+    }
+  }, [model, color, selectedMaterial, materialPreview]);
+
+  useEffect(() => {
+    if (text3D && scene) {
+      // Validate selectedFont value
+      const fontName = selectedFont || "helvetiker_regular.typeface.json";
       const fontPath = `/fonts/${fontName}`;
       
       console.log(`Loading 3D text with font: ${fontName}`);
       
+      // Set loading state
+      setIsFontLoading(true);
+      
+      // Use our custom font loader that handles both .typeface.json and .ttf formats
       loadFont(fontPath)
         .then((font) => {
-          setFontLoading(false);
+          setIsFontLoading(false);
           try {
             console.log('Creating TextGeometry with options:', {
-              size: props.textScale?.x || 0.2,
-              height: props.textScale?.y || 0.05,
-              curveSegments: 12,
-              bevelEnabled: false,
-              bevelThickness: 0.03,
-              bevelSize: 0.02,
-              bevelOffset: 0,
-              bevelSegments: 5
+              size: text3DOptions?.size || 0.2,
+              height: text3DOptions?.height || 0.05,
+              curveSegments: text3DOptions?.curveSegments || 12,
+              bevelEnabled: Boolean(text3DOptions?.bevelEnabled !== false), // Ensure it's a boolean
+              bevelThickness: text3DOptions?.bevelThickness || 0.03,
+              bevelSize: text3DOptions?.bevelSize || 0.02,
+              bevelOffset: text3DOptions?.bevelOffset || 0,
+              bevelSegments: text3DOptions?.bevelSegments || 5
             });
             
-            const geometry = new TextGeometry(props.text3D || "", {
+            const geometry = new TextGeometry(text3D, {
               font,
-              size: props.textScale?.x || 0.2,
-              depth: props.textScale?.y || 0.05,
-              curveSegments: 12,
-              bevelEnabled: false,
-              bevelThickness: 0.03,
-              bevelSize: 0.02,
-              bevelOffset: 0,
-              bevelSegments: 5
+              size: text3DOptions?.size || 0.2,
+              depth: text3DOptions?.height || 0.05,
+              curveSegments: text3DOptions?.curveSegments || 12,
+              bevelEnabled: Boolean(text3DOptions?.bevelEnabled !== false), // Ensure it's a boolean
+              bevelThickness: text3DOptions?.bevelThickness || 0.03,
+              bevelSize: text3DOptions?.bevelSize || 0.02,
+              bevelOffset: text3DOptions?.bevelOffset || 0,
+              bevelSegments: text3DOptions?.bevelSegments || 5
             });
 
             let material;
-            if (props.textColor) {
+            if (textMaterial === 'emissive') {
               material = new THREE.MeshStandardMaterial({
-                color: props.textColor,
-                metalness: 0.5,
-                roughness: 0.5
+                color: textColor,
+                emissive: textColor,
+                emissiveIntensity: 1
+              });
+            } else if (textMaterial === 'engraved' && isEngraving) {
+              material = new THREE.MeshStandardMaterial({
+                color: textColor,
+                metalness: 0.8,
+                roughness: 0.2,
+                displacementScale: engraveDepth
               });
             } else {
               material = new THREE.MeshStandardMaterial({
-                color: "#ffffff",
+                color: textColor,
                 metalness: 0.5,
                 roughness: 0.5
               });
@@ -103,9 +267,19 @@ export function ModelViewer(props: ModelViewerProps) {
 
             const mesh = new THREE.Mesh(geometry, material);
             mesh.position.set(
-              props.textPosition?.x || 0,
-              props.textPosition?.y || 0,
-              props.textPosition?.z || 0
+              textPosition?.x || 0,
+              textPosition?.y || 0,
+              textPosition?.z || 0
+            );
+            mesh.rotation.set(
+              textRotation?.x || 0,
+              textRotation?.y || 0,
+              textRotation?.z || 0
+            );
+            mesh.scale.set(
+              textScale?.x || 1,
+              textScale?.y || 1,
+              textScale?.z || 1
             );
 
             if (textMesh) {
@@ -115,121 +289,117 @@ export function ModelViewer(props: ModelViewerProps) {
             setTextMesh(mesh);
           } catch (error) {
             console.error('Error creating text geometry:', error);
-            setFontLoading(false);
+            setIsFontLoading(false);
             
-            if (props.selectedFont !== 'helvetiker_regular.typeface.json') {
+            // Try again with the default font
+            if (selectedFont !== 'helvetiker_regular.typeface.json') {
               console.log('Falling back to default font due to geometry creation error');
-              props.onFontError?.(new Error('Failed to create text with selected font. Falling back to default font.'));
+              onFontError?.(new Error('Failed to create text with selected font. Falling back to default font.'));
             } else {
-              props.onFontError?.(error instanceof Error ? error : new Error('Failed to create text geometry'));
+              onFontError?.(error instanceof Error ? error : new Error('Failed to create text geometry'));
             }
           }
         })
         .catch((error) => {
-          setFontLoading(false);
+          setIsFontLoading(false);
           console.error('Error loading font:', error);
           
-          if (props.selectedFont !== 'helvetiker_regular.typeface.json') {
+          // Try again with the default font
+          if (selectedFont !== 'helvetiker_regular.typeface.json') {
             console.log('Falling back to default font due to font loading error');
-            props.onFontError?.(new Error('Failed to load selected font. Falling back to default font.'));
+            onFontError?.(new Error('Failed to load selected font. Falling back to default font.'));
           } else {
-            props.onFontError?.(error instanceof Error ? error : new Error('Failed to load font'));
+            onFontError?.(error instanceof Error ? error : new Error('Failed to load font'));
           }
         });
     }
-  }, [props.text3D, props.textColor, props.textPosition, props.textScale, scene, props.selectedFont, props.onFontError]);
+  }, [
+    text3D,
+    textColor,
+    textPosition,
+    textRotation,
+    textScale,
+    text3DOptions,
+    textMaterial,
+    engraveDepth,
+    isEngraving,
+    scene,
+    selectedFont,
+    onFontError
+  ]);
 
-  // Add decal meshes
   useEffect(() => {
-    if (!scene || !model) return;
-
-    // Remove existing decals
-    scene.children.forEach(child => {
-      if (child.userData.isDecal) {
-        scene.remove(child);
-      }
-    });
-
-    // Create new decals
-    props.decalSplatters?.forEach(splatter => {
-      // Find the closest face to the decal position
-      const raycaster = new THREE.Raycaster();
-      raycaster.set(splatter.position, new THREE.Vector3(0, 0, 1));
-      
-      const intersects = raycaster.intersectObjects(model.children, true);
-      if (intersects.length === 0) return;
-
-      const intersection = intersects[0];
-      const face = intersection.face;
-      if (!face) return;
-
-      // Create decal geometry
-      const decalGeometry = new DecalGeometry(
-        intersection.object as THREE.Mesh,
-        intersection.point,
-        splatter.rotation,
-        splatter.scale
-      );
-
-      // Create material
-      let material;
-      if (splatter.texture) {
-        const texture = new THREE.TextureLoader().load(splatter.texture);
-        material = new THREE.MeshPhongMaterial({
-          map: texture,
-          transparent: true,
-          depthTest: true,
-          depthWrite: false,
-          polygonOffset: true,
-          polygonOffsetFactor: -4
+    if (uvMapTexture && uvMapText && model) {
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.load(uvMapTexture, (texture) => {
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            const material = child.material as THREE.MeshStandardMaterial;
+            material.map = texture;
+            material.needsUpdate = true;
+          }
         });
-      } else {
-        material = new THREE.MeshPhongMaterial({
-          color: splatter.color,
-          transparent: true,
-          depthTest: true,
-          depthWrite: false,
-          polygonOffset: true,
-          polygonOffsetFactor: -4
-        });
-      }
+      });
+    }
+  }, [uvMapTexture, uvMapText, model]);
 
-      // Create decal mesh
-      const decalMesh = new THREE.Mesh(decalGeometry, material);
-      decalMesh.userData.isDecal = true;
-      scene.add(decalMesh);
-    });
-  }, [scene, model, props.decalSplatters]);
-
-  // Add click handler for decal placement
-  const handleClick = (event: ThreeEvent<PointerEvent>) => {
-    if (!model || !props.onAddDecal) return;
-
-    // Get the canvas element
-    const canvas = gl.domElement;
-    const rect = canvas.getBoundingClientRect();
-    const mouse = new THREE.Vector2(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -((event.clientY - rect.top) / rect.height) * 2 + 1
-    );
-
-    // Create raycaster
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-
-    // Find intersections
-    const intersects = raycaster.intersectObjects(model.children, true);
-    if (intersects.length === 0) return;
-
-    const intersection = intersects[0];
-    props.onAddDecal(intersection.point, intersection.face?.normal || new THREE.Vector3(0, 0, 1));
-  };
+  if (isLoading) {
+    return null
+  }
 
   return (
-    <group ref={groupRef} onClick={handleClick}>
-      <primitive object={model} />
-    </group>
-  );
+    <>
+      <group ref={groupRef}>
+        {/* Environment and Lighting */}
+        <Environment preset="studio" />
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[5, 5, 5]} intensity={0.5} castShadow />
+        <directionalLight position={[-5, 5, -5]} intensity={0.3} />
+
+        {/* Model */}
+        <Center>
+          <primitive object={preparedScene} />
+        </Center>
+
+        {/* Optional 3D Text */}
+        {text3D && (
+          <>
+            {isFontLoading ? (
+              <Html position={[textPosition.x, textPosition.y, textPosition.z]}>
+                <div className="text-overlay-3d px-4 py-2 bg-black/70 rounded text-white">
+                  Loading Font...
+                </div>
+              </Html>
+            ) : (
+              <Text3D
+                font={`/fonts/${selectedFont || "helvetiker_regular.typeface.json"}`}
+                position={[textPosition.x, textPosition.y, textPosition.z]}
+                scale={[textScale.x, textScale.y, textScale.z]}
+              >
+                {text3D}
+                <meshStandardMaterial color={textColor || "#ffffff"} />
+              </Text3D>
+            )}
+          </>
+        )}
+      </group>
+      {/* Camera Controls - must be direct child of Canvas */}
+      <OrbitControls
+        enableDamping={true}
+        dampingFactor={0.1}
+        enableZoom={true}
+        zoomSpeed={0.8}
+        enablePan={true}
+        panSpeed={0.5}
+        enableRotate={true}
+        rotateSpeed={0.5}
+        minDistance={0.1}
+        maxDistance={200}
+        target={[0, 0, 0]}
+        makeDefault
+      />
+    </>
+  )
 }
 
 // Preload the default model

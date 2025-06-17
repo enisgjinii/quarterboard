@@ -13,8 +13,6 @@ import * as THREE from 'three'
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FontPreviewer } from "./font-previewer"
-import { UVMapExtractor } from "./uv-map-extractor"
-import { Vector3, Euler } from 'three'
 
 interface SceneData {
   modelUrl: string;
@@ -29,15 +27,6 @@ interface SceneData {
   isEngraving: boolean;
   image: string;
   selectedFont: string;
-}
-
-interface DecalSplatter {
-  position: Vector3;
-  rotation: Euler;
-  scale: Vector3;
-  color: string;
-  size: number;
-  texture?: string;
 }
 
 interface AppSidebarProps {
@@ -69,9 +58,6 @@ interface AppSidebarProps {
   isRecording?: boolean
   onRecordingStart?: () => void
   onRecordingStop?: () => void
-  decalSplatters: DecalSplatter[];
-  setDecalSplatters: (splatters: DecalSplatter[]) => void;
-  onAddDecal?: (position: THREE.Vector3, normal: THREE.Vector3) => void;
 }
 
 export function AppSidebar({
@@ -103,9 +89,6 @@ export function AppSidebar({
   isRecording = false,
   onRecordingStart,
   onRecordingStop,
-  decalSplatters,
-  setDecalSplatters,
-  onAddDecal,
 }: AppSidebarProps) {
   const { theme, setTheme } = useTheme()
   const [selectedModel, setSelectedModel] = useState<string>("")
@@ -153,25 +136,15 @@ export function AppSidebar({
   // Handle recording state changes
   useEffect(() => {
     if (isRecording) {
-      // Start timer
       recordingTimerRef.current = setInterval(() => {
         setRecordingDuration(prev => prev + 1)
       }, 1000)
     } else {
-      // Stop timer and reset duration
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current)
         recordingTimerRef.current = null
       }
       setRecordingDuration(0)
-    }
-
-    // Cleanup
-    return () => {
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current)
-        recordingTimerRef.current = null
-      }
     }
   }, [isRecording])
 
@@ -326,33 +299,6 @@ export function AppSidebar({
     } finally {
       setIsExporting(false);
     }
-  };
-
-  const handleAddDecal = (position: THREE.Vector3, normal: THREE.Vector3) => {
-    // Create rotation that aligns with the surface normal
-    const rotation = new THREE.Euler();
-    const quaternion = new THREE.Quaternion();
-    quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
-    rotation.setFromQuaternion(quaternion);
-
-    const newSplatter: DecalSplatter = {
-      position,
-      rotation,
-      scale: new Vector3(1, 1, 1),
-      color: "#ff0000",
-      size: 1
-    };
-    setDecalSplatters([...decalSplatters, newSplatter]);
-  };
-
-  const updateDecalSplatter = (index: number, updates: Partial<DecalSplatter>) => {
-    const newSplatters = [...decalSplatters];
-    newSplatters[index] = { ...newSplatters[index], ...updates };
-    setDecalSplatters(newSplatters);
-  };
-
-  const removeDecalSplatter = (index: number) => {
-    setDecalSplatters(decalSplatters.filter((_, i) => i !== index));
   };
 
   return (
@@ -522,7 +468,6 @@ export function AppSidebar({
               <Button
                 onClick={isRecording ? onRecordingStop : onRecordingStart}
                 className={`w-full ${isRecording ? 'bg-red-500 hover:bg-red-600' : ''}`}
-                disabled={!onRecordingStart || !onRecordingStop}
               >
                 {isRecording ? (
                   <>
@@ -578,224 +523,6 @@ export function AppSidebar({
                 )}
               </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Add UV Map Extractor */}
-        <UVMapExtractor
-          scene={scene}
-          onExtract={(uvMap) => {
-            // Handle the extracted UV map
-            console.log('UV Map extracted:', uvMap)
-          }}
-        />
-
-        <Card>
-          <CardHeader className="p-3">
-            <CardTitle className="text-sm">Decals</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 space-y-3">
-            <div className="text-sm text-muted-foreground mb-2">
-              Click on the model to place a decal
-            </div>
-            <Button
-              onClick={() => {
-                if (onAddDecal) {
-                  // Enable decal placement mode
-                  onAddDecal(new Vector3(0, 0, 0), new Vector3(0, 1, 0));
-                }
-              }}
-              className="w-full"
-            >
-              Add Decal
-            </Button>
-
-            {decalSplatters.map((splatter, index) => (
-              <div key={index} className="space-y-3 p-3 border rounded-lg">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-sm font-medium">Decal {index + 1}</h4>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeDecalSplatter(index)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">Position</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Input
-                      type="number"
-                      value={splatter.position.x}
-                      onChange={(e) => {
-                        const newPos = new Vector3(
-                          parseFloat(e.target.value),
-                          splatter.position.y,
-                          splatter.position.z
-                        );
-                        updateDecalSplatter(index, { position: newPos });
-                      }}
-                      className="h-8 text-sm"
-                      placeholder="X"
-                    />
-                    <Input
-                      type="number"
-                      value={splatter.position.y}
-                      onChange={(e) => {
-                        const newPos = new Vector3(
-                          splatter.position.x,
-                          parseFloat(e.target.value),
-                          splatter.position.z
-                        );
-                        updateDecalSplatter(index, { position: newPos });
-                      }}
-                      className="h-8 text-sm"
-                      placeholder="Y"
-                    />
-                    <Input
-                      type="number"
-                      value={splatter.position.z}
-                      onChange={(e) => {
-                        const newPos = new Vector3(
-                          splatter.position.x,
-                          splatter.position.y,
-                          parseFloat(e.target.value)
-                        );
-                        updateDecalSplatter(index, { position: newPos });
-                      }}
-                      className="h-8 text-sm"
-                      placeholder="Z"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">Rotation (degrees)</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Input
-                      type="number"
-                      value={splatter.rotation.x * (180 / Math.PI)}
-                      onChange={(e) => {
-                        const newRot = new Euler(
-                          parseFloat(e.target.value) * (Math.PI / 180),
-                          splatter.rotation.y,
-                          splatter.rotation.z
-                        );
-                        updateDecalSplatter(index, { rotation: newRot });
-                      }}
-                      className="h-8 text-sm"
-                      placeholder="X"
-                    />
-                    <Input
-                      type="number"
-                      value={splatter.rotation.y * (180 / Math.PI)}
-                      onChange={(e) => {
-                        const newRot = new Euler(
-                          splatter.rotation.x,
-                          parseFloat(e.target.value) * (Math.PI / 180),
-                          splatter.rotation.z
-                        );
-                        updateDecalSplatter(index, { rotation: newRot });
-                      }}
-                      className="h-8 text-sm"
-                      placeholder="Y"
-                    />
-                    <Input
-                      type="number"
-                      value={splatter.rotation.z * (180 / Math.PI)}
-                      onChange={(e) => {
-                        const newRot = new Euler(
-                          splatter.rotation.x,
-                          splatter.rotation.y,
-                          parseFloat(e.target.value) * (Math.PI / 180)
-                        );
-                        updateDecalSplatter(index, { rotation: newRot });
-                      }}
-                      className="h-8 text-sm"
-                      placeholder="Z"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">Scale</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Input
-                      type="number"
-                      value={splatter.scale.x}
-                      onChange={(e) => {
-                        const newScale = new Vector3(
-                          parseFloat(e.target.value),
-                          splatter.scale.y,
-                          splatter.scale.z
-                        );
-                        updateDecalSplatter(index, { scale: newScale });
-                      }}
-                      className="h-8 text-sm"
-                      placeholder="X"
-                    />
-                    <Input
-                      type="number"
-                      value={splatter.scale.y}
-                      onChange={(e) => {
-                        const newScale = new Vector3(
-                          splatter.scale.x,
-                          parseFloat(e.target.value),
-                          splatter.scale.z
-                        );
-                        updateDecalSplatter(index, { scale: newScale });
-                      }}
-                      className="h-8 text-sm"
-                      placeholder="Y"
-                    />
-                    <Input
-                      type="number"
-                      value={splatter.scale.z}
-                      onChange={(e) => {
-                        const newScale = new Vector3(
-                          splatter.scale.x,
-                          splatter.scale.y,
-                          parseFloat(e.target.value)
-                        );
-                        updateDecalSplatter(index, { scale: newScale });
-                      }}
-                      className="h-8 text-sm"
-                      placeholder="Z"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={splatter.color}
-                      onChange={(e) => updateDecalSplatter(index, { color: e.target.value })}
-                      className="w-8 h-8 p-1"
-                    />
-                    <Input
-                      value={splatter.color}
-                      onChange={(e) => updateDecalSplatter(index, { color: e.target.value })}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">Size</Label>
-                  <Slider
-                    value={[splatter.size]}
-                    onValueChange={([value]) => updateDecalSplatter(index, { size: value })}
-                    min={0.1}
-                    max={5}
-                    step={0.1}
-                  />
-                </div>
-              </div>
-            ))}
           </CardContent>
         </Card>
       </div>
