@@ -87,13 +87,30 @@ export function BabylonModelLoader({
         const min = boundingInfo.min;
         const max = boundingInfo.max;
         const center = min.add(max).scale(0.5);
-        model.position = new Vector3(-center.x, -center.y, -center.z);
-
-        // Scale the model to a reasonable size
+        
+        // Calculate the size for scaling
         const size = max.subtract(min);
         const maxDimension = Math.max(size.x, size.y, size.z);
-        const scale = 5 / maxDimension;
+        
+        // Adjust scale based on model size
+        let scale = 1;
+        if (maxDimension > 10) {
+          scale = 10 / maxDimension;
+        } else if (maxDimension < 1) {
+          scale = 1 / maxDimension;
+        }
+        
+        // Apply scaling
         model.scaling = new Vector3(scale, scale, scale);
+        
+        // Center the model
+        model.position = new Vector3(-center.x * scale, -center.y * scale, -center.z * scale);
+        
+        // Ensure model is above ground
+        const modelHeight = (max.y - min.y) * scale;
+        if (modelHeight > 0) {
+          model.position.y += modelHeight / 2;
+        }
 
         // Notify parent component that model is loaded
         onModelLoad({
