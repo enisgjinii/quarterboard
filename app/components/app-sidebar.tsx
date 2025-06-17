@@ -85,6 +85,10 @@ interface AppSidebarProps {
   setIsRecording: (recording: boolean) => void;
   recordedVideo: Blob | null;
   setRecordedVideo: (video: Blob | null) => void;
+  isTextEditing?: boolean;
+  setIsTextEditing?: (editing: boolean) => void;
+  textSnapToModel?: boolean;
+  setTextSnapToModel?: (snap: boolean) => void;
 }
 
 export function AppSidebar({
@@ -128,7 +132,11 @@ export function AppSidebar({
   isRecording,
   setIsRecording,
   recordedVideo,
-  setRecordedVideo
+  setRecordedVideo,
+  isTextEditing,
+  setIsTextEditing,
+  textSnapToModel,
+  setTextSnapToModel
 }: AppSidebarProps) {
   const { theme, setTheme } = useTheme()
   const [email, setEmail] = useState('')
@@ -315,6 +323,97 @@ export function AppSidebar({
               />
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Text Interaction</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="text-editing-mode">Text Editing Mode</Label>
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="text-editing-mode" className="text-sm text-gray-500">
+                  {isTextEditing ? "On" : "Off"}
+                </Label>                <input
+                  type="checkbox"
+                  id="text-editing-mode"
+                  checked={isTextEditing}
+                  onChange={(e) => setIsTextEditing?.(e.target.checked)}
+                  className="toggle"
+                  aria-label="Toggle text editing mode"
+                  title="Enable text editing mode"
+                />
+              </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              When enabled, click on the model to place text
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="text-snap">Snap to Model Center</Label>
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="text-snap" className="text-sm text-gray-500">
+                  {textSnapToModel ? "On" : "Off"}
+                </Label>                <input
+                  type="checkbox"
+                  id="text-snap"
+                  checked={textSnapToModel}
+                  onChange={(e) => setTextSnapToModel?.(e.target.checked)}
+                  className="toggle"
+                  aria-label="Toggle text snapping to model"
+                  title="Snap text to model center"
+                />
+              </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              Position text centered on the model
+            </div>
+          </div>
+          
+          <div className="pt-2 pb-2 border-t border-gray-200 mt-2">
+            <h3 className="text-sm font-medium">Text Positioning</h3>
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              <div className="space-y-1">
+                <Label className="text-xs">X</Label>
+                <Input
+                  type="number"
+                  value={textPosition.x}
+                  onChange={(e) => setTextPosition({...textPosition, x: parseFloat(e.target.value)})}
+                  step={0.1}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Y</Label>
+                <Input
+                  type="number"
+                  value={textPosition.y}
+                  onChange={(e) => setTextPosition({...textPosition, y: parseFloat(e.target.value)})}
+                  step={0.1}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Z</Label>
+                <Input
+                  type="number"
+                  value={textPosition.z}
+                  onChange={(e) => setTextPosition({...textPosition, z: parseFloat(e.target.value)})}
+                  step={0.1}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div className="text-sm text-center text-gray-500 border-t border-gray-200 pt-2 mt-2">
+            Drag text directly in the 3D view to reposition
+          </div>
         </CardContent>
       </Card>
 
