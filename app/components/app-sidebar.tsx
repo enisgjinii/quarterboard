@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Type, Sun, Moon, Download, Mail, Video, Square, ChevronLeft, ChevronRight, Palette, TextCursor, Layers } from "lucide-react"
+import { Type, Sun, Moon, Download, Mail, Video, Square, Palette, TextCursor, Layers, RotateCcw } from "lucide-react"
 import { useTheme } from "next-themes"
 import React, { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
@@ -75,8 +75,10 @@ interface AppSidebarProps {
   setSelectedFont: (font: string) => void;
   isTextEditing?: boolean;
   setIsTextEditing?: (editing: boolean) => void;
-  collapsed?: boolean;
-  onToggleCollapse?: () => void;
+  averageFps?: number;
+  performanceMode?: boolean;
+  setPerformanceMode?: (mode: boolean) => void;
+  resetView?: () => void;
 }
 
 export function AppSidebar({
@@ -105,8 +107,10 @@ export function AppSidebar({
   setSelectedFont,
   isTextEditing,
   setIsTextEditing,
-  collapsed = false,
-  onToggleCollapse
+  averageFps,
+  performanceMode,
+  setPerformanceMode,
+  resetView
 }: AppSidebarProps) {
   const { theme, setTheme } = useTheme()
   const [email, setEmail] = useState('')
@@ -184,68 +188,25 @@ export function AppSidebar({
     }
   }
 
-  if (collapsed) {
-    return (
-      <div className="h-full flex flex-col items-center py-4 bg-white/95 dark:bg-slate-900/95">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleCollapse}
-          className="mb-4 p-2"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        
-        <div className="flex flex-col gap-3">
-          <Button
-            variant={activeSection === 'model' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveSection('model')}
-            className="p-2"
-            title="Model Settings"
-          >
-            <Layers className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant={activeSection === 'colors' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveSection('colors')}
-            className="p-2"
-            title="Colors"
-          >
-            <Palette className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant={activeSection === 'text' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveSection('text')}
-            className="p-2"
-            title="Text Settings"
-          >
-            <TextCursor className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col bg-white/95 dark:bg-slate-900/95">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
-          Designer Panel
-        </h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleCollapse}
-          className="p-2"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+            Designer Panel
+          </h2>
+          
+          {/* FPS Monitor */}
+          {process.env.NODE_ENV === 'development' && averageFps && (
+            <div className="bg-black/80 text-white px-2 py-1 text-xs rounded font-mono backdrop-blur-sm">
+              <div className="flex items-center gap-1">
+                <div className={`w-1.5 h-1.5 rounded-full ${averageFps > 50 ? 'bg-green-400' : averageFps > 30 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
+                {averageFps.toFixed(1)} FPS
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Navigation Tabs */}
@@ -491,6 +452,46 @@ export function AppSidebar({
 
       {/* Footer Actions */}
       <div className="border-t border-slate-200 dark:border-slate-700 p-4 space-y-3">
+        {/* Performance and Text Controls */}
+        <div className="space-y-2">
+          {/* Performance Mode Toggle */}
+          {setPerformanceMode && (
+            <Button
+              variant={performanceMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => setPerformanceMode(!performanceMode)}
+              className={`w-full h-8 ${performanceMode ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
+            >
+              {performanceMode ? "Performance Mode" : "Quality Mode"}
+            </Button>
+          )}
+          
+          {/* Text Editing Toggle */}
+          {setIsTextEditing && (
+            <Button
+              variant={isTextEditing ? "default" : "outline"}
+              size="sm"
+              onClick={() => setIsTextEditing(!isTextEditing)}
+              className={`w-full h-8 ${isTextEditing ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
+            >
+              {isTextEditing ? "Exit Text Edit" : "Edit Text"}
+            </Button>
+          )}
+          
+          {/* Reset View Button */}
+          {resetView && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={resetView}
+              className="w-full h-8"
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Reset View
+            </Button>
+          )}
+        </div>
+        
         <Button
           variant="outline"
           className="w-full"

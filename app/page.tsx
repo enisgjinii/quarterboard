@@ -193,18 +193,8 @@ export default function Component() {
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      {/* Performance Monitor */}
-      {process.env.NODE_ENV === 'development' && averageFps && (
-        <div className="absolute top-4 right-4 z-50 bg-black/80 text-white px-3 py-2 text-xs rounded-lg font-mono backdrop-blur-sm">
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${averageFps > 50 ? 'bg-green-400' : averageFps > 30 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
-            {averageFps.toFixed(1)} FPS
-          </div>
-        </div>
-      )}
-      
-      {/* Left Sidebar */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-80'} transition-all duration-300 ease-in-out border-r border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-xl`}>
+      {/* Left Sidebar - 1/2 width */}
+      <div className="w-1/2 border-r border-slate-200 dark:border-slate-700 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-xl">
         <AppSidebar
           selectedModel={selectedModel}
           setSelectedModel={setSelectedModel}
@@ -231,86 +221,62 @@ export default function Component() {
           setSelectedFont={setSelectedFont}
           isTextEditing={isTextEditing}
           setIsTextEditing={setIsTextEditing}
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          averageFps={averageFps || undefined}
+          performanceMode={performanceMode}
+          setPerformanceMode={setPerformanceMode}
+          resetView={resetView}
         />
       </div>
       
-      {/* Main 3D Viewer Area */}
-      <div className="flex-1 relative overflow-hidden">
+      {/* Main 3D Viewer Area - 1/2 width */}
+      <div className="w-1/2 flex flex-col overflow-hidden">
         {/* Top Control Bar */}
-        <div className="absolute top-0 left-0 right-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between px-6 py-3">
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-slate-800 dark:text-slate-200">
+        <div className="flex-shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
+          <div className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">
                 Quarterboard Designer
               </h1>
-              <div className="text-sm text-slate-500 dark:text-slate-400">
+              <div className="text-xs text-slate-500 dark:text-slate-400">
                 {selectedModel.replace('.glb', '').replace(/^The /, '')}
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetView}
-                className="bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border-slate-300 dark:border-slate-600"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset
-              </Button>
-              
-              <Button
-                variant={performanceMode ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  const newMode = !performanceMode;
-                  setPerformanceMode(newMode);
-                  toast.success(
-                    newMode ? "Performance mode enabled" : "Quality mode enabled",
-                    { duration: 2000 }
-                  );
-                }}
-                className={`${performanceMode ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border-slate-300 dark:border-slate-600'}`}
-              >
-                {performanceMode ? "Performance" : "Quality"}
-              </Button>
-              
+            <div className="flex items-center gap-1">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border-slate-300 dark:border-slate-600"
+                className="h-8 px-2 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border-slate-300 dark:border-slate-600"
               >
-                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {theme === "dark" ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
               </Button>
             </div>
           </div>
         </div>
         
-        {/* Loading Overlay */}
-        {modelLoading && (
-          <div className="absolute inset-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm flex items-center justify-center z-20">
-            <div className="flex flex-col items-center gap-4">
-              <div className="relative">
-                <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 rounded-full"></div>
-                <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
-              </div>
-              <div className="text-center">
-                <p className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-1">
-                  Loading Quarterboard
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Preparing your 3D model...
-                </p>
+        {/* 3D Viewer - Takes all remaining space */}
+        <div className="flex-1 relative">
+          {/* Loading Overlay */}
+          {modelLoading && (
+            <div className="absolute inset-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm flex items-center justify-center z-20">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 rounded-full"></div>
+                  <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-1">
+                    Loading Quarterboard
+                  </p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Preparing your 3D model...
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
           
-        {/* 3D Viewer */}
-        <div className="w-full h-full">
           <Suspense fallback={
             <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
               <div className="flex flex-col items-center gap-4">
@@ -335,28 +301,6 @@ export default function Component() {
               onTextPositionChange={setTextPosition}
             />
           </Suspense>
-        </div>
-        
-        {/* Bottom Control Bar */}
-        <div className="absolute bottom-0 left-0 right-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-center px-6 py-3">
-            <div className="flex items-center gap-3">
-              <Button
-                variant={isTextEditing ? "default" : "outline"}
-                size="sm"
-                onClick={() => setIsTextEditing(!isTextEditing)}
-                className={`${isTextEditing ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border-slate-300 dark:border-slate-600'}`}
-              >
-                {isTextEditing ? "Exit Text Edit" : "Edit Text"}
-              </Button>
-              
-              {isTextEditing && (
-                <div className="text-sm text-slate-600 dark:text-slate-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
-                  Click on the model to place text
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     </div>
