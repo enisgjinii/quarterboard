@@ -54,18 +54,11 @@ interface AppSidebarProps {
   setSelectedModel: (model: string) => void;
   modelColor: string;
   setModelColor: (color: string) => void;
-  meshInfo: MeshInfo[];
   meshes: MeshData[];
   selectedMesh: string | null;
   setSelectedMesh: (mesh: string | null) => void;
   meshColors: Record<string, string>;
   setMeshColors: (colors: Record<string, string>) => void;
-  selectedMaterial: string | null;
-  setSelectedMaterial: (material: string | null) => void;
-  materialPreview: string | null;
-  setMaterialPreview: (preview: string | null) => void;
-  isPreviewMode: boolean;
-  setIsPreviewMode: (mode: boolean) => void;
   text3D: string;
   setText3D: (text: string) => void;
   textColor: string;
@@ -76,28 +69,12 @@ interface AppSidebarProps {
   setTextRotation: (rotation: { x: number; y: number; z: number }) => void;
   textScale: { x: number; y: number; z: number };
   setTextScale: (scale: { x: number; y: number; z: number }) => void;
-  text3DOptions: any;
-  setText3DOptions: (options: any) => void;
   textMaterial: 'standard' | 'emissive' | 'engraved';
   setTextMaterial: (material: 'standard' | 'emissive' | 'engraved') => void;
-  engraveDepth: number;
-  setEngraveDepth: (depth: number) => void;
-  isEngraving: boolean;
-  setIsEngraving: (isEngraving: boolean) => void;
   selectedFont: string;
   setSelectedFont: (font: string) => void;
-  uvMapTexture: string | null;
-  setUvMapTexture: (texture: string | null) => void;
-  uvMapText: string;
-  setUvMapText: (text: string) => void;
-  uvMapTextOptions: any;
-  setUvMapTextOptions: (options: any) => void;
-  recordedVideo: Blob | null;
-  setRecordedVideo: (video: Blob | null) => void;
   isTextEditing?: boolean;
   setIsTextEditing?: (editing: boolean) => void;
-  textSnapToModel?: boolean;
-  setTextSnapToModel?: (snap: boolean) => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }
@@ -107,18 +84,11 @@ export function AppSidebar({
   setSelectedModel,
   modelColor,
   setModelColor,
-  meshInfo,
   meshes,
   selectedMesh,
   setSelectedMesh,
   meshColors,
   setMeshColors,
-  selectedMaterial,
-  setSelectedMaterial,
-  materialPreview,
-  setMaterialPreview,
-  isPreviewMode,
-  setIsPreviewMode,
   text3D,
   setText3D,
   textColor,
@@ -129,28 +99,12 @@ export function AppSidebar({
   setTextRotation,
   textScale,
   setTextScale,
-  text3DOptions,
-  setText3DOptions,
   textMaterial,
   setTextMaterial,
-  engraveDepth,
-  setEngraveDepth,
-  isEngraving,
-  setIsEngraving,
   selectedFont,
   setSelectedFont,
-  uvMapTexture,
-  setUvMapTexture,
-  uvMapText,
-  setUvMapText,
-  uvMapTextOptions,
-  setUvMapTextOptions,
-  recordedVideo,
-  setRecordedVideo,
   isTextEditing,
   setIsTextEditing,
-  textSnapToModel,
-  setTextSnapToModel,
   collapsed = false,
   onToggleCollapse
 }: AppSidebarProps) {
@@ -479,35 +433,6 @@ export function AppSidebar({
                     ))}
                   </select>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="material-select" className="text-sm font-medium">Material Style</Label>
-                  <select 
-                    id="material-select"
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={textMaterial}
-                    onChange={(e) => setTextMaterial(e.target.value as 'standard' | 'emissive' | 'engraved')}
-                    title="Select material type"
-                  >
-                    <option value="standard">Standard</option>
-                    <option value="emissive">Glowing</option>
-                    <option value="engraved">Engraved</option>
-                  </select>
-                </div>
-
-                {textMaterial === 'engraved' && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Engrave Depth</Label>
-                    <Slider
-                      value={[engraveDepth]}
-                      onValueChange={([value]) => setEngraveDepth(value)}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      className="w-full"
-                    />
-                  </div>
-                )}
 
                 <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700">
                   <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">Position</h4>

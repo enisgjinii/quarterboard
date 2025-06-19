@@ -49,17 +49,12 @@ const models = [
 export default function Component() {
   const [selectedModel, setSelectedModel] = useState(models[Math.floor(Math.random() * models.length)]);
   const [modelUrl, setModelUrl] = useState(`/models/${selectedModel}`);
-  const [textureUrl, setTextureUrl] = useState<string | null>(null)
   const [modelColor, setModelColor] = useState("#8B4513")
   const [modelLoaded, setModelLoaded] = useState(false)
-  const [meshInfo, setMeshInfo] = useState<MeshInfo[]>([])
   const [meshes, setMeshes] = useState<MeshData[]>([])
   const [selectedMesh, setSelectedMesh] = useState<string | null>(null)
   const [meshColors, setMeshColors] = useState<Record<string, string>>({})
   const [mounted, setMounted] = useState(false)
-  const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null)
-  const [materialPreview, setMaterialPreview] = useState<string | null>(null)
-  const [isPreviewMode, setIsPreviewMode] = useState(false)
   const { isLowEndDevice } = useDevicePerformance()
   const [performanceMode, setPerformanceMode] = useState(isLowEndDevice)
   
@@ -69,43 +64,15 @@ export default function Component() {
   const [textPosition, setTextPosition] = useState({ x: 0, y: 1.5, z: 0 })
   const [textRotation, setTextRotation] = useState({ x: 0, y: 0, z: 0 })
   const [textScale, setTextScale] = useState({ x: 1, y: 1, z: 1 })
-  const [text3DOptions, setText3DOptions] = useState({
-    size: 0.3,
-    height: 0.1,
-    curveSegments: 12,
-    bevelEnabled: true,
-    bevelThickness: 0.01,
-    bevelSize: 0.005,
-    bevelOffset: 0,
-    bevelSegments: 5
-  })
   const [textMaterial, setTextMaterial] = useState<'standard' | 'emissive' | 'engraved'>('standard')
-  const [engraveDepth, setEngraveDepth] = useState(0.1)
-  const [isEngraving, setIsEngraving] = useState(false)
   const [isTextEditing, setIsTextEditing] = useState(false)
-  const [textSnapToModel, setTextSnapToModel] = useState(true)
-
-  // UV Map states
-  const [uvMapTexture, setUvMapTexture] = useState<string | null>(null)
-  const [uvMapText, setUvMapText] = useState("")
-  const [uvMapTextOptions, setUvMapTextOptions] = useState({
-    fontSize: 48,
-    fontFamily: "Arial",
-    textColor: "#000000",
-    backgroundColor: "transparent",
-    position: { x: 0.5, y: 0.5 },
-    rotation: 0,
-    scale: 1
-  })
 
   const { theme, setTheme } = useTheme()
   const [selectedFont, setSelectedFont] = useState("helvetiker_regular.typeface.json")
-  const [recordedVideo, setRecordedVideo] = useState<Blob | null>(null)
   
   // Enhanced UI states
   const [modelLoading, setModelLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -164,11 +131,9 @@ export default function Component() {
       setSelectedMesh(null);
       setMeshColors({});
       
-      setTimeout(() => {
-        const encodedModel = encodeURIComponent(selectedModel);
-        const fullUrl = `/models/${encodedModel}`;
-        setModelUrl(fullUrl);
-      }, 50);
+      const encodedModel = encodeURIComponent(selectedModel);
+      const fullUrl = `/models/${encodedModel}`;
+      setModelUrl(fullUrl);
     }
   }, [selectedModel])
 
@@ -245,18 +210,11 @@ export default function Component() {
           setSelectedModel={setSelectedModel}
           modelColor={modelColor}
           setModelColor={setModelColor}
-          meshInfo={meshInfo}
           meshes={meshes}
           selectedMesh={selectedMesh}
           setSelectedMesh={setSelectedMesh}
           meshColors={meshColors}
           setMeshColors={setMeshColors}
-          selectedMaterial={selectedMaterial}
-          setSelectedMaterial={setSelectedMaterial}
-          materialPreview={materialPreview}
-          setMaterialPreview={setMaterialPreview}
-          isPreviewMode={isPreviewMode}
-          setIsPreviewMode={setIsPreviewMode}
           text3D={text3D}
           setText3D={setText3D}
           textColor={textColor}
@@ -267,28 +225,12 @@ export default function Component() {
           setTextRotation={setTextRotation}
           textScale={textScale}
           setTextScale={setTextScale}
-          text3DOptions={text3DOptions}
-          setText3DOptions={setText3DOptions}
           textMaterial={textMaterial}
           setTextMaterial={setTextMaterial}
-          engraveDepth={engraveDepth}
-          setEngraveDepth={setEngraveDepth}
-          isEngraving={isEngraving}
-          setIsEngraving={setIsEngraving}
           selectedFont={selectedFont}
           setSelectedFont={setSelectedFont}
-          uvMapTexture={uvMapTexture}
-          setUvMapTexture={setUvMapTexture}
-          uvMapText={uvMapText}
-          setUvMapText={setUvMapText}
-          uvMapTextOptions={uvMapTextOptions}
-          setUvMapTextOptions={setUvMapTextOptions}
-          recordedVideo={recordedVideo}
-          setRecordedVideo={setRecordedVideo}
           isTextEditing={isTextEditing}
           setIsTextEditing={setIsTextEditing}
-          textSnapToModel={textSnapToModel}
-          setTextSnapToModel={setTextSnapToModel}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
@@ -368,7 +310,7 @@ export default function Component() {
         )}
           
         {/* 3D Viewer */}
-        <div className="w-full h-full pt-16">
+        <div className="w-full h-full">
           <Suspense fallback={
             <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
               <div className="flex flex-col items-center gap-4">

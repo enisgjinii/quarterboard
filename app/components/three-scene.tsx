@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Environment, useGLTF, Text, Center, PresentationControls, Html } from '@react-three/drei';
+import { OrbitControls, Environment, useGLTF, Text, Center, PresentationControls, Html, Grid } from '@react-three/drei';
 import * as THREE from 'three';
 import { processModel, cleanupModel } from '@/lib/model-utils';
 
@@ -335,24 +335,7 @@ export function ThreeScene({
         <Environment preset="city" />
         
         {/* Enhanced floor with grid */}
-        <group>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2.5, 0]} receiveShadow>
-            <planeGeometry args={[100, 100]} />
-            <meshStandardMaterial 
-              color="#f8fafc" 
-              roughness={0.9}
-              metalness={0.05}
-              transparent
-              opacity={0.9}
-            />
-          </mesh>
-          
-          {/* Grid lines */}
-          <gridHelper 
-            args={[30, 30, '#e2e8f0', '#f1f5f9']} 
-            position={[0, -2.49, 0]} 
-          />
-        </group>
+        <Grid position={[0, -2.5, 0]} args={[100, 100]} infiniteGrid fadeDistance={25} fadeStrength={4} />
       </Canvas>
     </div>
   );
