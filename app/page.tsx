@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState, useEffect, useCallback, useRef } from "react"
+import { Suspense, useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { AppSidebar } from "./components/app-sidebar"
 import { Button } from "@/components/ui/button"
 import { Moon, Sun, RotateCcw, Maximize2, Settings } from "lucide-react"
@@ -48,7 +48,7 @@ const models = [
 
 export default function Component() {
   const [selectedModel, setSelectedModel] = useState(models[Math.floor(Math.random() * models.length)]);
-  const [modelUrl, setModelUrl] = useState(`/models/${selectedModel}`);
+  const [modelUrl, setModelUrl] = useState(`/models/${encodeURIComponent(selectedModel)}`);
   const [modelColor, setModelColor] = useState("#8B4513")
   const [modelLoaded, setModelLoaded] = useState(false)
   const [meshes, setMeshes] = useState<MeshData[]>([])
@@ -64,7 +64,7 @@ export default function Component() {
   const [textPosition, setTextPosition] = useState({ x: 0, y: 1.5, z: 0 })
   const [textRotation, setTextRotation] = useState({ x: 0, y: 0, z: 0 })
   const [textScale, setTextScale] = useState({ x: 1, y: 1, z: 1 })
-  const [textMaterial, setTextMaterial] = useState<'standard' | 'emissive' | 'engraved'>('standard')
+  const [textMaterial, setTextMaterial] = useState<'standard' | 'emissive' | 'engraved'>('engraved')
   const [isTextEditing, setIsTextEditing] = useState(false)
 
   const { theme, setTheme } = useTheme()
@@ -73,6 +73,72 @@ export default function Component() {
   // Enhanced UI states
   const [modelLoading, setModelLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Memoize callbacks to prevent unnecessary re-renders
+  const handleModelLoad = useCallback((loadedMeshes: MeshData[]) => {
+    console.log("Model loaded:", loadedMeshes);
+    setModelLoaded(true);
+    setMeshes(loadedMeshes);
+    
+    // Initialize mesh colors
+    const initialColors: Record<string, string> = {};
+    loadedMeshes.forEach(mesh => {
+      initialColors[mesh.name] = modelColor;
+    });
+    setMeshColors(initialColors);
+    
+    setModelLoading(false);
+  }, [modelColor]);
+
+  const handleMeshClick = useCallback((meshName: string, mesh: any) => {
+    setSelectedMesh(meshName);
+    toast.success(`Selected: ${meshName}`, { duration: 2000 });
+  }, []);
+  
+  const handleRecommendPerformanceMode = useCallback(() => {
+    toast.info(
+      "Enable performance mode for smoother experience?",
+      {
+        duration: 8000,
+        action: {
+          label: "Enable",
+          onClick: () => setPerformanceMode(true)
+        }
+      }
+    );
+  }, []);
+  
+  const resetView = useCallback(() => {
+    const currentModel = selectedModel;
+    setSelectedModel("");
+    setMeshes([]);
+    setSelectedMesh(null);
+    setMeshColors({});
+    setTimeout(() => setSelectedModel(currentModel), 100);
+    toast.success("View reset", { duration: 1500 });
+  }, [selectedModel]);
+
+  // Memoize debounced handlers
+  const handleTextChange = useMemo(
+    () => debounce((value: string) => {
+      setText3D(value);
+    }, 300),
+    []
+  );
+
+  const handleColorChange = useMemo(
+    () => debounce((value: string) => {
+      setTextColor(value);
+    }, 300),
+    []
+  );
+
+  const handleScaleChange = useMemo(
+    () => debounce((value: number) => {
+      setTextScale({ x: value, y: value, z: value });
+    }, 300),
+    []
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -87,40 +153,7 @@ export default function Component() {
   }, [isLowEndDevice]);
   
   // Monitor performance and recommend performance mode if needed
-  const handleRecommendPerformanceMode = useCallback(() => {
-    toast.info(
-      "Enable performance mode for smoother experience?",
-      {
-        duration: 8000,
-        action: {
-          label: "Enable",
-          onClick: () => setPerformanceMode(true)
-        }
-      }
-    );
-  }, []);
-  
   const { averageFps } = usePerformanceMonitor(performanceMode, handleRecommendPerformanceMode);
-  
-  const handleModelLoad = (loadedMeshes: MeshData[]) => {
-    console.log("Model loaded:", loadedMeshes);
-    setModelLoaded(true);
-    setMeshes(loadedMeshes);
-    
-    // Initialize mesh colors
-    const initialColors: Record<string, string> = {};
-    loadedMeshes.forEach(mesh => {
-      initialColors[mesh.name] = modelColor;
-    });
-    setMeshColors(initialColors);
-    
-    setModelLoading(false);
-  };
-
-  const handleMeshClick = (meshName: string, mesh: any) => {
-    setSelectedMesh(meshName);
-    toast.success(`Selected: ${meshName}`, { duration: 2000 });
-  };
   
   // Update modelUrl when selectedModel changes
   useEffect(() => {
@@ -164,28 +197,6 @@ export default function Component() {
       }
     };
   }, []);
-
-  const handleTextChange = debounce((value: string) => {
-    setText3D(value);
-  }, 300);
-
-  const handleColorChange = debounce((value: string) => {
-    setTextColor(value);
-  }, 300);
-
-  const handleScaleChange = debounce((value: number) => {
-    setTextScale({ x: value, y: value, z: value });
-  }, 300);
-
-  const resetView = () => {
-    const currentModel = selectedModel;
-    setSelectedModel("");
-    setMeshes([]);
-    setSelectedMesh(null);
-    setMeshColors({});
-    setTimeout(() => setSelectedModel(currentModel), 100);
-    toast.success("View reset", { duration: 1500 });
-  };
 
   if (!mounted) {
     return null
@@ -286,6 +297,7 @@ export default function Component() {
             </div>
           }>
             <R3FModelViewer
+              key={modelUrl}
               modelUrl={modelUrl}
               modelColor={modelColor}
               onModelLoad={handleModelLoad}
@@ -294,6 +306,7 @@ export default function Component() {
               textPosition={textPosition}
               textRotation={textRotation}
               textScale={textScale}
+              textMaterial={textMaterial}
               onMeshClick={handleMeshClick}
               selectedMesh={selectedMesh}
               meshColors={meshColors}

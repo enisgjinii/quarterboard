@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, useGLTF, Text, Center, PresentationControls, Html, Grid } from '@react-three/drei';
 import * as THREE from 'three';
@@ -37,11 +37,16 @@ function Model({
   const modelRef = useRef<THREE.Group>(null!);
   const [meshes, setMeshes] = useState<MeshData[]>([]);
   const [hoveredMesh, setHoveredMesh] = useState<string | null>(null);
+  const [clonedScene, setClonedScene] = useState<THREE.Object3D | null>(null);
   
   useEffect(() => {
-    if (modelRef.current && scene) {
-      // Process model with our utility function
-      const result = processModel(modelRef.current, {
+    if (scene) {
+      // Clone the scene
+      const cloned = scene.clone();
+      setClonedScene(cloned);
+      
+      // Process the cloned model
+      const result = processModel(cloned, {
         color: modelColor,
         roughness: 0.3,
         metalness: 0.2
@@ -49,12 +54,12 @@ function Model({
       
       // Center model
       if (result) {
-        modelRef.current.position.sub(result.center);
+        cloned.position.sub(result.center);
       }
       
       // Collect mesh information
       const foundMeshes: MeshData[] = [];
-      modelRef.current.traverse((child) => {
+      cloned.traverse((child) => {
         if (child instanceof THREE.Mesh && child.material) {
           const meshName = child.name || `mesh_${foundMeshes.length}`;
           child.name = meshName; // Ensure mesh has a name
@@ -77,37 +82,40 @@ function Model({
       }
       
       // Add slight rotation animation
-      const initialRotation = modelRef.current.rotation.y;
-      modelRef.current.userData.initialRotation = initialRotation;
+      cloned.userData.initialRotation = 0;
     }
     
     return () => {
       // Clean up with our utility function
-      if (modelRef.current) {
-        cleanupModel(modelRef.current);
+      if (clonedScene) {
+        cleanupModel(clonedScene);
       }
     };
-  }, [url, modelColor, onModelLoad]);
+  }, [scene, modelColor, onModelLoad]);
   
-  // Update mesh colors when meshColors prop changes
+  // Update mesh colors when meshColors prop changes - optimized to prevent unnecessary updates
   useEffect(() => {
-    if (modelRef.current) {
-      modelRef.current.traverse((child) => {
+    if (clonedScene) {
+      clonedScene.traverse((child) => {
         if (child instanceof THREE.Mesh && child.name && meshColors[child.name]) {
           const material = child.material as THREE.MeshStandardMaterial;
-          if (material.color) {
+          if (material.color && material.color.getHexString() !== meshColors[child.name].replace('#', '')) {
             material.color.set(meshColors[child.name]);
+            material.needsUpdate = true;
           }
         }
       });
     }
-  }, [meshColors]);
+  }, [meshColors, clonedScene]);
   
-  // Gentle rotation animation
+  // Gentle rotation animation - optimized to prevent conflicts
   useFrame((state) => {
     if (modelRef.current) {
       const time = state.clock.getElapsedTime();
-      modelRef.current.rotation.y = modelRef.current.userData.initialRotation + Math.sin(time * 0.2) * 0.05;
+      const targetRotation = Math.sin(time * 0.2) * 0.05;
+      
+      // Smooth interpolation to prevent jerky movement
+      modelRef.current.rotation.y += (targetRotation - modelRef.current.rotation.y) * 0.1;
     }
   });
   
@@ -132,17 +140,20 @@ function Model({
     }
   };
   
+  if (!clonedScene) {
+    return null; // Don't render until scene is cloned and processed
+  }
+  
   return (
-    <group>
+    <group ref={modelRef}>
       <primitive 
-        ref={modelRef}
-        object={scene.clone()} 
+        object={clonedScene} 
         position={position} 
         rotation={rotation}
         scale={[scale, scale, scale]}
-                 onClick={handleMeshClick}
-         onPointerOver={(e: any) => handleMeshHover(e, true)}
-         onPointerOut={(e: any) => handleMeshHover(e, false)}
+        onClick={handleMeshClick}
+        onPointerOver={(e: any) => handleMeshHover(e, true)}
+        onPointerOut={(e: any) => handleMeshHover(e, false)}
       />
       
       {/* Show mesh name on hover */}
@@ -166,6 +177,7 @@ interface ThreeSceneProps {
   textPosition?: { x: number; y: number; z: number };
   textRotation?: { x: number; y: number; z: number };
   textScale?: { x: number; y: number; z: number };
+  textMaterial?: 'standard' | 'emissive' | 'engraved';
   performanceMode?: boolean;
   onMeshClick?: (meshName: string, mesh: THREE.Mesh) => void;
   selectedMesh?: string | null;
@@ -183,6 +195,7 @@ export function ThreeScene({
   textPosition = { x: 0, y: 2, z: 0 },
   textRotation = { x: 0, y: 0, z: 0 },
   textScale = { x: 1, y: 1, z: 1 },
+  textMaterial = 'standard',
   performanceMode = false,
   onMeshClick,
   selectedMesh,
@@ -201,13 +214,25 @@ export function ThreeScene({
     }
   }, [onModelLoad]);
   
-  // Calculate pixel ratio based on performance mode
-  const pixelRatio = performanceMode ? 
-    Math.min(1.5, window.devicePixelRatio) : 
-    Math.min(2, window.devicePixelRatio);
+  // Memoize pixel ratio to prevent unnecessary re-renders
+  const pixelRatio = useMemo(() => 
+    performanceMode ? 
+      Math.min(1.5, window.devicePixelRatio) : 
+      Math.min(2, window.devicePixelRatio),
+    [performanceMode]
+  );
+  
+  // Memoize GL context options
+  const glOptions = useMemo(() => ({
+    antialias: !performanceMode,
+    alpha: true,
+    preserveDrawingBuffer: true,
+    toneMapping: THREE.ACESFilmicToneMapping,
+    toneMappingExposure: 1.2
+  }), [performanceMode]);
   
   // Handle text click for editing
-  const handleTextClick = (event: any) => {
+  const handleTextClick = useCallback((event: any) => {
     if (isTextEditing && onTextPositionChange) {
       const point = event.point;
       if (point) {
@@ -218,7 +243,7 @@ export function ThreeScene({
         });
       }
     }
-  };
+  }, [isTextEditing, onTextPositionChange]);
   
   return (
     <div className="w-full h-full">
@@ -226,13 +251,7 @@ export function ThreeScene({
         shadows
         camera={{ position: [5, 8, 12], fov: 45 }}
         dpr={pixelRatio}
-        gl={{ 
-          antialias: !performanceMode,
-          alpha: true,
-          preserveDrawingBuffer: true,
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.2
-        }}
+        gl={glOptions}
         onCreated={() => setLoaded(true)}
       >
         {/* Environment and lighting */}
@@ -269,6 +288,7 @@ export function ThreeScene({
         {/* Main model */}
         <group position={[0, -0.5, 0]}>
           <Model 
+            key={modelUrl}
             url={modelUrl} 
             modelColor={modelColor} 
             scale={4}
@@ -282,6 +302,7 @@ export function ThreeScene({
         {/* Enhanced 3D Text */}
         {text3D && (
           <group
+            key={`text-${text3D}-${textColor}-${textMaterial}`}
             ref={textRef}
             position={[textPosition.x, textPosition.y, textPosition.z]}
             rotation={[textRotation.x, textRotation.y, textRotation.z]}
@@ -290,7 +311,7 @@ export function ThreeScene({
           >
             <Center>
               <Text
-                color={textColor}
+                key={`text-content-${text3D}`}
                 fontSize={0.6}
                 maxWidth={12}
                 lineHeight={1.1}
@@ -301,11 +322,78 @@ export function ThreeScene({
                 anchorY="middle"
                 castShadow
                 receiveShadow
-                outlineWidth={0.02}
-                outlineColor="#ffffff"
               >
                 {text3D}
+                {textMaterial === 'engraved' ? (
+                  <meshStandardMaterial
+                    attach="material"
+                    color={textColor}
+                    roughness={0.8}
+                    metalness={0.1}
+                    envMapIntensity={0.3}
+                    emissive={new THREE.Color(textColor).multiplyScalar(0.1)}
+                    emissiveIntensity={0.5}
+                  />
+                ) : textMaterial === 'emissive' ? (
+                  <meshBasicMaterial 
+                    attach="material" 
+                    color={textColor} 
+                    toneMapped={false} 
+                  />
+                ) : (
+                  <meshStandardMaterial 
+                    attach="material" 
+                    color={textColor} 
+                  />
+                )}
               </Text>
+              
+              {/* Add depth effect for engraved text */}
+              {textMaterial === 'engraved' && (
+                <>
+                  {/* Shadow layer for depth */}
+                  <Text
+                    position={[0, 0, -0.02]}
+                    fontSize={0.6}
+                    maxWidth={12}
+                    lineHeight={1.1}
+                    letterSpacing={0.03}
+                    textAlign="center"
+                    font="/fonts/EBGaramond-Bold.ttf"
+                    anchorX="center"
+                    anchorY="middle"
+                  >
+                    {text3D}
+                    <meshBasicMaterial 
+                      attach="material" 
+                      color="#000000" 
+                      opacity={0.3}
+                      transparent
+                    />
+                  </Text>
+                  
+                  {/* Highlight layer for carved effect */}
+                  <Text
+                    position={[0.005, -0.005, 0.01]}
+                    fontSize={0.6}
+                    maxWidth={12}
+                    lineHeight={1.1}
+                    letterSpacing={0.03}
+                    textAlign="center"
+                    font="/fonts/EBGaramond-Bold.ttf"
+                    anchorX="center"
+                    anchorY="middle"
+                  >
+                    {text3D}
+                    <meshBasicMaterial 
+                      attach="material" 
+                      color="#ffffff" 
+                      opacity={0.2}
+                      transparent
+                    />
+                  </Text>
+                </>
+              )}
             </Center>
             
             {/* Text editing helpers */}
@@ -321,6 +409,7 @@ export function ThreeScene({
         {/* Click plane for text positioning when editing */}
         {isTextEditing && (
           <mesh
+            key="text-edit-plane"
             position={[0, 0, 0]}
             rotation={[-Math.PI / 2, 0, 0]}
             onClick={handleTextClick}

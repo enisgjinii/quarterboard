@@ -18,6 +18,7 @@ interface ModelViewerProps {
   textPosition?: { x: number; y: number; z: number };
   textRotation?: { x: number; y: number; z: number };
   textScale?: { x: number; y: number; z: number };
+  textMaterial?: 'standard' | 'emissive' | 'engraved';
   onMeshClick?: (meshName: string, mesh: any) => void;
   selectedMesh?: string | null;
   meshColors?: Record<string, string>;
@@ -34,6 +35,7 @@ export function R3FModelViewer({
   textPosition,
   textRotation,
   textScale,
+  textMaterial,
   onMeshClick,
   selectedMesh,
   meshColors,
@@ -79,6 +81,7 @@ export function R3FModelViewer({
           textPosition={textPosition}
           textRotation={textRotation}
           textScale={textScale}
+          textMaterial={textMaterial}
           onMeshClick={onMeshClick}
           selectedMesh={selectedMesh}
           meshColors={meshColors}
