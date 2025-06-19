@@ -268,9 +268,47 @@ export function BabylonModelLoader({
 
     loadModel();
     
+    // Add mesh validation to ensure all meshes have proper bounding info
+    const validateMeshes = () => {
+      if (!scene || !modelRef.current) return;
+      
+      const allMeshes = [...scene.meshes];
+      allMeshes.forEach(mesh => {
+        try {
+          // Regenerate bounding info if missing or invalid
+          if (!mesh.getBoundingInfo() || 
+              !mesh.getBoundingInfo().boundingBox || 
+              !mesh.getBoundingInfo().boundingSphere) {
+            console.log("Regenerating bounding info for mesh:", mesh.name);
+            mesh.refreshBoundingInfo();
+          }
+          
+          // Also check submeshes
+          if (mesh.subMeshes) {
+            mesh.subMeshes.forEach(subMesh => {
+              if (!subMesh.getBoundingInfo() || 
+                  !subMesh.getBoundingInfo().boundingSphere ||
+                  !subMesh.getBoundingInfo().boundingBox) {
+                console.log("Fixing submesh bounding info for:", mesh.name);
+                subMesh.refreshBoundingInfo();
+              }
+            });
+          }
+        } catch (e) {
+          console.warn("Could not validate mesh", mesh.name, e);
+          // Disable problematic meshes that can't be fixed
+          mesh.setEnabled(false);
+        }
+      });
+    };
+    
+    // Run validation after a short delay to ensure model is fully loaded
+    const validationTimeout = setTimeout(validateMeshes, 1000);
+    
     // Cleanup function to prevent memory leaks and multiple loads
     return () => {
       isActive = false;
+      clearTimeout(validationTimeout);
       if (modelRef.current) {
         // Don't dispose the model here, it will be handled on the next load
       }

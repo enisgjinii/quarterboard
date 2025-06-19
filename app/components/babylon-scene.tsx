@@ -443,7 +443,28 @@ export function BabylonScene({
         
         // In performance mode, limit the frame rate
         if (!performanceMode || (currentTime - lastRenderTime) >= renderInterval) {
-          scene.render();
+          // Check for invalid meshes before rendering to prevent the boundingSphere error
+          let invalidMeshes = scene.meshes.filter(mesh => 
+            !mesh || 
+            !mesh.isEnabled() || 
+            (mesh.subMeshes && mesh.subMeshes.some(subMesh => !subMesh || !subMesh.getBoundingInfo() || !subMesh.getBoundingInfo().boundingSphere))
+          );
+          
+          if (invalidMeshes.length > 0) {
+            console.warn("Found invalid meshes that could cause rendering issues:", invalidMeshes.map(m => m.name));
+            // Remove or disable problematic meshes
+            invalidMeshes.forEach(mesh => {
+              if (mesh && mesh.name !== "ground" && mesh.name !== "axesHelper" && mesh.name !== "centerPoint") {
+                mesh.setEnabled(false);
+              }
+            });
+          }
+          
+          try {
+            scene.render();
+          } catch (error) {
+            console.error("Render error:", error);
+          }
           lastRenderTime = currentTime;
         }
       }

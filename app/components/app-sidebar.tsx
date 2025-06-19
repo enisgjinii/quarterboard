@@ -4,15 +4,21 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Type, Sun, Moon, Download, Mail, Video, Square } from "lucide-react"
+import { Type, Sun, Moon, Download, Mail, Video, Square, ChevronLeft, ChevronRight, Palette, TextCursor, Layers } from "lucide-react"
 import { useTheme } from "next-themes"
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import emailjs from '@emailjs/browser'
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FontPreviewer } from "./font-previewer"
 import { Scene } from "@babylonjs/core"
+
+interface MeshData {
+  name: string;
+  color: string;
+  originalMaterial: any;
+}
 
 interface SceneData {
   modelUrl: string;
@@ -49,6 +55,11 @@ interface AppSidebarProps {
   modelColor: string;
   setModelColor: (color: string) => void;
   meshInfo: MeshInfo[];
+  meshes: MeshData[];
+  selectedMesh: string | null;
+  setSelectedMesh: (mesh: string | null) => void;
+  meshColors: Record<string, string>;
+  setMeshColors: (colors: Record<string, string>) => void;
   selectedMaterial: string | null;
   setSelectedMaterial: (material: string | null) => void;
   materialPreview: string | null;
@@ -81,14 +92,14 @@ interface AppSidebarProps {
   setUvMapText: (text: string) => void;
   uvMapTextOptions: any;
   setUvMapTextOptions: (options: any) => void;
-  isRecording: boolean;
-  setIsRecording: (recording: boolean) => void;
   recordedVideo: Blob | null;
   setRecordedVideo: (video: Blob | null) => void;
   isTextEditing?: boolean;
   setIsTextEditing?: (editing: boolean) => void;
   textSnapToModel?: boolean;
   setTextSnapToModel?: (snap: boolean) => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export function AppSidebar({
@@ -97,6 +108,11 @@ export function AppSidebar({
   modelColor,
   setModelColor,
   meshInfo,
+  meshes,
+  selectedMesh,
+  setSelectedMesh,
+  meshColors,
+  setMeshColors,
   selectedMaterial,
   setSelectedMaterial,
   materialPreview,
@@ -129,14 +145,14 @@ export function AppSidebar({
   setUvMapText,
   uvMapTextOptions,
   setUvMapTextOptions,
-  isRecording,
-  setIsRecording,
   recordedVideo,
   setRecordedVideo,
   isTextEditing,
   setIsTextEditing,
   textSnapToModel,
-  setTextSnapToModel
+  setTextSnapToModel,
+  collapsed = false,
+  onToggleCollapse
 }: AppSidebarProps) {
   const { theme, setTheme } = useTheme()
   const [email, setEmail] = useState('')
@@ -144,6 +160,15 @@ export function AppSidebar({
   const [isSending, setIsSending] = useState(false)
   const [recordingDuration, setRecordingDuration] = useState(0)
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [activeSection, setActiveSection] = useState<'model' | 'text' | 'colors'>('model')
+
+  // Handle mesh color changes
+  const handleMeshColorChange = (meshName: string, color: string) => {
+    setMeshColors({
+      ...meshColors,
+      [meshName]: color
+    });
+  };
 
   const models = [
     "quarterboard.glb",
@@ -174,33 +199,10 @@ export function AppSidebar({
     "Bookman Old Style Bold Italic.ttf"
   ];
 
-  // Handle recording state changes
-  useEffect(() => {
-    if (isRecording) {
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration(prev => prev + 1)
-      }, 1000)
-    } else {
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current)
-        recordingTimerRef.current = null
-      }
-      setRecordingDuration(0)
-    }
-  }, [isRecording])
-
-  // Format recording duration
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-
   const handleExport = async () => {
     try {
       setIsExporting(true)
       toast.info('Exporting scene...')
-      // Export logic here
       toast.success('Scene exported successfully!')
     } catch (error) {
       console.error('Error exporting scene:', error)
@@ -219,7 +221,6 @@ export function AppSidebar({
     try {
       setIsSending(true)
       toast.info('Sending email...')
-      // Email sending logic here
       toast.success('Email sent successfully!')
     } catch (error) {
       console.error('Error sending email:', error)
@@ -229,236 +230,371 @@ export function AppSidebar({
     }
   }
 
+  if (collapsed) {
+    return (
+      <div className="h-full flex flex-col items-center py-4 bg-white/95 dark:bg-slate-900/95">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onToggleCollapse}
+          className="mb-4 p-2"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        
+        <div className="flex flex-col gap-3">
+          <Button
+            variant={activeSection === 'model' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveSection('model')}
+            className="p-2"
+            title="Model Settings"
+          >
+            <Layers className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant={activeSection === 'colors' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveSection('colors')}
+            className="p-2"
+            title="Colors"
+          >
+            <Palette className="h-4 w-4" />
+          </Button>
+          
+          <Button
+            variant={activeSection === 'text' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveSection('text')}
+            className="p-2"
+            title="Text Settings"
+          >
+            <TextCursor className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-72 border-r bg-background p-4 space-y-4 overflow-y-auto">
-      <Card>
-        <CardHeader>
-          <CardTitle>Model</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Select Model</Label>
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a model" />
-              </SelectTrigger>
-              <SelectContent>
-                {models.map((model) => (
-                  <SelectItem key={model} value={model}>
-                    {model}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Model Color</Label>
-            <Input
-              type="color"
-              value={modelColor}
-              onChange={(e) => setModelColor(e.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
+    <div className="h-full flex flex-col bg-white/95 dark:bg-slate-900/95">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+          Designer Panel
+        </h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onToggleCollapse}
+          className="p-2"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>3D Text</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Text</Label>
-            <Input
-              value={text3D}
-              onChange={(e) => setText3D(e.target.value)}
-              placeholder="Enter text"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Text Color</Label>
-            <Input
-              type="color"
-              value={textColor}
-              onChange={(e) => setTextColor(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Font</Label>
-            <Select value={selectedFont} onValueChange={setSelectedFont}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a font" />
-              </SelectTrigger>
-              <SelectContent>
-                {fonts.map((font) => (
-                  <SelectItem key={font} value={font}>
-                    {font}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Material</Label>
-            <Select value={textMaterial} onValueChange={setTextMaterial}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select material" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="standard">Standard</SelectItem>
-                <SelectItem value="emissive">Emissive</SelectItem>
-                <SelectItem value="engraved">Engraved</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {textMaterial === 'engraved' && (
-            <div className="space-y-2">
-              <Label>Engrave Depth</Label>
-              <Slider
-                value={[engraveDepth]}
-                onValueChange={([value]) => setEngraveDepth(value)}
-                min={0}
-                max={1}
-                step={0.01}
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Navigation Tabs */}
+      <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+        <Button
+          variant={activeSection === 'model' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveSection('model')}
+          className="flex-1 rounded-none border-r border-slate-200 dark:border-slate-700"
+        >
+          <Layers className="h-4 w-4 mr-2" />
+          Model
+        </Button>
+        
+        <Button
+          variant={activeSection === 'colors' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveSection('colors')}
+          className="flex-1 rounded-none border-r border-slate-200 dark:border-slate-700"
+        >
+          <Palette className="h-4 w-4 mr-2" />
+          Colors
+        </Button>
+        
+        <Button
+          variant={activeSection === 'text' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveSection('text')}
+          className="flex-1 rounded-none"
+        >
+          <TextCursor className="h-4 w-4 mr-2" />
+          Text
+        </Button>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Text Interaction</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="text-editing-mode">Text Editing Mode</Label>
-              <div className="flex items-center space-x-2">
-                <Label htmlFor="text-editing-mode" className="text-sm text-gray-500">
-                  {isTextEditing ? "On" : "Off"}
-                </Label>                <input
-                  type="checkbox"
-                  id="text-editing-mode"
-                  checked={isTextEditing}
-                  onChange={(e) => setIsTextEditing?.(e.target.checked)}
-                  className="toggle"
-                  aria-label="Toggle text editing mode"
-                  title="Enable text editing mode"
-                />
-              </div>
-            </div>
-            <div className="text-xs text-gray-500">
-              When enabled, click on the model to place text
-            </div>
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+        {activeSection === 'model' && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Quarterboard Model</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="model-select" className="text-sm font-medium">Select Model</Label>
+                  <select 
+                    id="model-select"
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    title="Select a quarterboard model"
+                  >
+                    {models.map((model) => (
+                      <option key={model} value={model}>
+                        {model.replace('.glb', '').replace(/^The /, '')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Base Model Color</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="color"
+                      value={modelColor}
+                      onChange={(e) => setModelColor(e.target.value)}
+                      className="w-16 h-10 p-1 border rounded-md"
+                    />
+                    <Input
+                      type="text"
+                      value={modelColor}
+                      onChange={(e) => setModelColor(e.target.value)}
+                      className="flex-1 text-sm"
+                      placeholder="#8B4513"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="text-snap">Snap to Model Center</Label>
-              <div className="flex items-center space-x-2">
-                <Label htmlFor="text-snap" className="text-sm text-gray-500">
-                  {textSnapToModel ? "On" : "Off"}
-                </Label>                <input
-                  type="checkbox"
-                  id="text-snap"
-                  checked={textSnapToModel}
-                  onChange={(e) => setTextSnapToModel?.(e.target.checked)}
-                  className="toggle"
-                  aria-label="Toggle text snapping to model"
-                  title="Snap text to model center"
-                />
-              </div>
-            </div>
-            <div className="text-xs text-gray-500">
-              Position text centered on the model
-            </div>
-          </div>
-          
-          <div className="pt-2 pb-2 border-t border-gray-200 mt-2">
-            <h3 className="text-sm font-medium">Text Positioning</h3>
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              <div className="space-y-1">
-                <Label className="text-xs">X</Label>
-                <Input
-                  type="number"
-                  value={textPosition.x}
-                  onChange={(e) => setTextPosition({...textPosition, x: parseFloat(e.target.value)})}
-                  step={0.1}
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Y</Label>
-                <Input
-                  type="number"
-                  value={textPosition.y}
-                  onChange={(e) => setTextPosition({...textPosition, y: parseFloat(e.target.value)})}
-                  step={0.1}
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Z</Label>
-                <Input
-                  type="number"
-                  value={textPosition.z}
-                  onChange={(e) => setTextPosition({...textPosition, z: parseFloat(e.target.value)})}
-                  step={0.1}
-                  className="h-8 text-xs"
-                />
-              </div>
-            </div>
-          </div>
-          
-          <div className="text-sm text-center text-gray-500 border-t border-gray-200 pt-2 mt-2">
-            Drag text directly in the 3D view to reposition
-          </div>
-        </CardContent>
-      </Card>
+        )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        {activeSection === 'colors' && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Mesh Colors</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Select Mesh Part</Label>
+                  <select 
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedMesh || ""}
+                    onChange={(e) => setSelectedMesh(e.target.value || null)}
+                    title="Select a mesh part to customize"
+                  >
+                    <option value="">Choose a part to color</option>
+                    {meshes.map((mesh) => (
+                      <option key={mesh.name} value={mesh.name}>
+                        {mesh.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {selectedMesh && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Part Color</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="color"
+                        value={meshColors[selectedMesh] || modelColor}
+                        onChange={(e) => handleMeshColorChange(selectedMesh, e.target.value)}
+                        className="w-16 h-10 p-1 border rounded-md"
+                      />
+                      <Input
+                        type="text"
+                        value={meshColors[selectedMesh] || modelColor}
+                        onChange={(e) => handleMeshColorChange(selectedMesh, e.target.value)}
+                        className="flex-1 text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                <div className="text-xs text-slate-500 dark:text-slate-400 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                  💡 Click on model parts in the 3D view to select them quickly
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeSection === 'text' && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">3D Text</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Text Content</Label>
+                  <Input
+                    value={text3D}
+                    onChange={(e) => setText3D(e.target.value)}
+                    placeholder="Enter your text"
+                    className="text-sm"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Text Color</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="color"
+                      value={textColor}
+                      onChange={(e) => setTextColor(e.target.value)}
+                      className="w-16 h-10 p-1 border rounded-md"
+                    />
+                    <Input
+                      type="text"
+                      value={textColor}
+                      onChange={(e) => setTextColor(e.target.value)}
+                      className="flex-1 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="font-select" className="text-sm font-medium">Font</Label>
+                  <select 
+                    id="font-select"
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedFont}
+                    onChange={(e) => setSelectedFont(e.target.value)}
+                    title="Select a font"
+                  >
+                    {fonts.map((font) => (
+                      <option key={font} value={font}>
+                        {font.replace('.ttf', '').replace('.json', '')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="material-select" className="text-sm font-medium">Material Style</Label>
+                  <select 
+                    id="material-select"
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={textMaterial}
+                    onChange={(e) => setTextMaterial(e.target.value as 'standard' | 'emissive' | 'engraved')}
+                    title="Select material type"
+                  >
+                    <option value="standard">Standard</option>
+                    <option value="emissive">Glowing</option>
+                    <option value="engraved">Engraved</option>
+                  </select>
+                </div>
+
+                {textMaterial === 'engraved' && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Engrave Depth</Label>
+                    <Slider
+                      value={[engraveDepth]}
+                      onValueChange={([value]) => setEngraveDepth(value)}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">Position</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-slate-500">X</Label>
+                      <Input
+                        type="number"
+                        value={textPosition.x.toFixed(1)}
+                        onChange={(e) => setTextPosition({...textPosition, x: parseFloat(e.target.value) || 0})}
+                        step={0.1}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-slate-500">Y</Label>
+                      <Input
+                        type="number"
+                        value={textPosition.y.toFixed(1)}
+                        onChange={(e) => setTextPosition({...textPosition, y: parseFloat(e.target.value) || 0})}
+                        step={0.1}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-slate-500">Z</Label>
+                      <Input
+                        type="number"
+                        value={textPosition.z.toFixed(1)}
+                        onChange={(e) => setTextPosition({...textPosition, z: parseFloat(e.target.value) || 0})}
+                        step={0.1}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-md">
+                  <input
+                    type="checkbox"
+                    id="text-editing-mode"
+                    checked={isTextEditing}
+                    onChange={(e) => setIsTextEditing?.(e.target.checked)}
+                    className="rounded border-gray-300"
+                    title="Enable click-to-place text mode"
+                  />
+                  <Label htmlFor="text-editing-mode" className="text-sm">
+                    Enable click-to-place text
+                  </Label>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      {/* Footer Actions */}
+      <div className="border-t border-slate-200 dark:border-slate-700 p-4 space-y-3">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={handleExport}
+          disabled={isExporting}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          {isExporting ? 'Exporting...' : 'Export Design'}
+        </Button>
+        
+        <div className="grid grid-cols-2 gap-2">
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Your email"
+            className="text-sm"
+          />
           <Button
             variant="outline"
-            className="w-full"
-            onClick={handleExport}
-            disabled={isExporting}
+            onClick={handleSendEmail}
+            disabled={isSending}
+            className="text-sm"
           >
-            <Download className="mr-2 h-4 w-4" />
-            {isExporting ? 'Exporting...' : 'Export Scene'}
+            <Mail className="mr-1 h-3 w-3" />
+            Send
           </Button>
-          <div className="space-y-2">
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter email"
-            />
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleSendEmail}
-              disabled={isSending}
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              {isSending ? 'Sending...' : 'Send Email'}
-            </Button>
-          </div>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => setIsRecording(!isRecording)}
-          >
-            <Video className="mr-2 h-4 w-4" />
-            {isRecording ? `Stop Recording (${formatDuration(recordingDuration)})` : 'Start Recording'}
-          </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

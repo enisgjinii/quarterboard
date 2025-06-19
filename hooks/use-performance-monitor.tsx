@@ -15,45 +15,52 @@ export function usePerformanceMonitor(
   const [frames, setFrames] = useState<number[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [hasRecommended, setHasRecommended] = useState(false);
-  
-  useEffect(() => {
+    useEffect(() => {
     // Skip monitoring if already in performance mode or already recommended
     if (performanceMode || hasRecommended) return;
-    
-    let frameStart = performance.now();
+      let frameStart = performance.now();
     let animationFrameId: number;
     let lowFrameCount = 0;
+    let frameCounter = 0; // Add frame counter to control state updates
+    let framesBuffer = [...frames]; // Create a local copy to avoid state updates in animation frame
     
     const checkFrame = () => {
       const now = performance.now();
       const frameDuration = now - frameStart;
       const fps = 1000 / frameDuration;
       frameStart = now;
+      frameCounter++; // Increment frame counter
       
-      setFrames(prev => {
-        // Keep only the most recent samples
-        const newFrames = [...prev, fps].slice(-FPS_SAMPLE_SIZE);
+      // Update local buffer without state changes during animation frame
+      framesBuffer = [...framesBuffer, fps].slice(-FPS_SAMPLE_SIZE);
+      
+      // If we have enough samples, check if performance is poor
+      if (framesBuffer.length >= FPS_SAMPLE_SIZE && !hasRecommended) {
+        const avgFps = framesBuffer.reduce((sum, curr) => sum + curr, 0) / framesBuffer.length;
         
-        // If we have enough samples, check if performance is poor
-        if (newFrames.length >= FPS_SAMPLE_SIZE && !hasRecommended) {
-          const avgFps = newFrames.reduce((sum, curr) => sum + curr, 0) / newFrames.length;
+        if (avgFps < LOW_FPS_THRESHOLD) {
+          lowFrameCount++;
           
-          if (avgFps < LOW_FPS_THRESHOLD) {
-            lowFrameCount++;
-            
-            // If consistently low FPS, recommend performance mode
-            if (lowFrameCount >= RECOMMEND_AFTER_SAMPLES) {
+          // If consistently low FPS, recommend performance mode
+          if (lowFrameCount >= RECOMMEND_AFTER_SAMPLES) {
+            // We'll update state outside the animation frame
+            if (!hasRecommended) {
               setHasRecommended(true);
               onRecommendPerformanceMode();
+              cancelAnimationFrame(animationFrameId);
+              return; // Stop the loop after recommendation
             }
-          } else {
-            // Reset counter if FPS improves
-            lowFrameCount = 0;
           }
+        } else {
+          // Reset counter if FPS improves
+          lowFrameCount = 0;
         }
-        
-        return newFrames;
-      });
+      }
+      
+      // Update React state less frequently to avoid render loops
+      if (frameCounter % 5 === 0) { // Only update every 5 frames
+        setFrames(framesBuffer);
+      }
       
       animationFrameId = requestAnimationFrame(checkFrame);
     };
@@ -66,7 +73,9 @@ export function usePerformanceMonitor(
       
       return () => {
         clearTimeout(timeoutId);
-        cancelAnimationFrame(animationFrameId);
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+        }
       };
     }
   }, [isMonitoring, performanceMode, hasRecommended, onRecommendPerformanceMode]);

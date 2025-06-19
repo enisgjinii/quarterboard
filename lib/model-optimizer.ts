@@ -59,27 +59,46 @@ export function optimizeMaterials(scene: Scene, performanceMode: boolean) {
  * Simplifies meshes by reducing vertex count for better performance
  */
 export function optimizeMeshes(scene: Scene, performanceMode: boolean) {
-  const meshes = scene.meshes.filter(mesh => mesh instanceof Mesh) as Mesh[];
+  const meshes = scene.meshes.filter(mesh => 
+    mesh instanceof Mesh && 
+    mesh.isEnabled() &&
+    // Ensure mesh has valid geometry and bounding info to prevent errors
+    mesh.getBoundingInfo() && 
+    mesh.getBoundingInfo().boundingSphere &&
+    mesh.getBoundingInfo().boundingBox
+  ) as Mesh[];
   
   if (!performanceMode) return; // Only apply in performance mode
   
   meshes.forEach(mesh => {
-    // Skip small meshes or those with few vertices
-    if (!mesh.geometry || mesh.geometry.getTotalVertices() < 1000) return;
-    
-    // Apply level-of-detail (LOD) for distant objects
-    if (!mesh.getLODLevels || mesh.getLODLevels().length === 0) {      // Remove unused vertex data to save memory
-      if (mesh.geometry) {
-        if (!mesh.geometry.isVerticesDataPresent('normal')) {
-          mesh.forceSharedVertices();
-        }
+    try {
+      // Skip small meshes or those with few vertices
+      if (!mesh.geometry || mesh.geometry.getTotalVertices() < 1000) return;
+      
+      // Fix any missing or invalid bounding info
+      if (!mesh.getBoundingInfo() || !mesh.getBoundingInfo().boundingSphere) {
+        console.log(`Refreshing bounding info for mesh: ${mesh.name}`);
+        mesh.refreshBoundingInfo(true);
       }
       
-      // Optimize mesh instances
-      mesh.freezeWorldMatrix();
-      
-      // Disable expensive computations if not needed
-      mesh.doNotSyncBoundingInfo = true;
+      // Apply level-of-detail (LOD) for distant objects
+      if (!mesh.getLODLevels || mesh.getLODLevels().length === 0) {
+        // Remove unused vertex data to save memory
+        if (mesh.geometry) {
+          if (!mesh.geometry.isVerticesDataPresent('normal')) {
+            mesh.forceSharedVertices();
+          }
+        }
+        
+        // Optimize mesh instances
+        mesh.freezeWorldMatrix();
+        
+        // Disable expensive computations if not needed
+        mesh.doNotSyncBoundingInfo = true;
+      }
+    } catch (error) {
+      console.warn(`Failed to optimize mesh ${mesh.name}:`, error);
+      // Don't let optimization errors crash the app
     }
   });
   

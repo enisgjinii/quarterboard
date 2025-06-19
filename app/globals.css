@@ -170,3 +170,267 @@
     text-wrap: balance;
   }
 }
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Enhanced UI Styles */
+@layer components {
+  .sidebar-section {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  .control-button {
+    @apply transition-all duration-150 ease-in-out transform hover:scale-105 active:scale-95;
+  }
+  
+  .color-input {
+    @apply border-2 border-slate-200 dark:border-slate-700 rounded-md transition-colors duration-150 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20;
+  }
+  
+  .text-input {
+    @apply border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md px-3 py-2 text-sm transition-all duration-150 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20;
+  }
+  
+  .select-input {
+    @apply border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md px-3 py-2 text-sm transition-all duration-150 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer;
+  }
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.2s ease-out;
+}
+
+/* Loading spinner enhancement */
+.loading-spinner {
+  @apply relative;
+}
+
+.loading-spinner::before {
+  content: '';
+  @apply absolute inset-0 rounded-full border-4 border-blue-200 dark:border-blue-800;
+}
+
+.loading-spinner::after {
+  content: '';
+  @apply absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin;
+}
+
+/* Enhanced scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Dark mode scrollbar */
+.dark .scrollbar-thin {
+  scrollbar-color: #475569 #1e293b;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Button enhancements */
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white transition-all duration-150 transform hover:scale-105 active:scale-95 shadow-md hover:shadow-lg;
+}
+
+.btn-secondary {
+  @apply bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all duration-150 transform hover:scale-105 active:scale-95;
+}
+
+/* Card enhancements */
+.card-enhanced {
+  @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200;
+}
+
+/* Glass morphism effect */
+.glass {
+  @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-white/20 dark:border-slate-700/50;
+}
+
+/* Focus states */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900;
+}
+
+/* Text styles */
+.text-gradient {
+  @apply bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent;
+}
+
+/* Tooltip styles */
+.tooltip {
+  @apply absolute z-50 px-2 py-1 text-xs text-white bg-black/80 rounded-md backdrop-blur-sm pointer-events-none;
+}
+
+/* Status indicators */
+.status-online {
+  @apply w-2 h-2 bg-green-400 rounded-full animate-pulse;
+}
+
+.status-warning {
+  @apply w-2 h-2 bg-yellow-400 rounded-full animate-pulse;
+}
+
+.status-error {
+  @apply w-2 h-2 bg-red-400 rounded-full animate-pulse;
+}
+
+/* Performance indicator */
+.fps-indicator {
+  @apply flex items-center gap-2 px-3 py-2 bg-black/80 text-white text-xs rounded-lg font-mono backdrop-blur-sm;
+}
+
+/* 3D viewer enhancements */
+.viewer-container {
+  @apply relative overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900;
+}
+
+/* Control panels */
+.control-panel {
+  @apply glass rounded-lg shadow-lg p-4 space-y-4;
+}
+
+.control-group {
+  @apply space-y-2;
+}
+
+.control-label {
+  @apply text-sm font-medium text-slate-700 dark:text-slate-300;
+}
+
+/* Mesh selection highlight */
+.mesh-selected {
+  @apply ring-2 ring-blue-500 ring-opacity-75;
+}
+
+/* Text editing indicators */
+.text-editing-active {
+  @apply border-2 border-dashed border-blue-500 bg-blue-50/50 dark:bg-blue-900/20;
+}
+
+/* Loading states */
+.loading-overlay {
+  @apply absolute inset-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm flex items-center justify-center z-20;
+}
+
+.loading-content {
+  @apply flex flex-col items-center gap-4 p-6 rounded-lg bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm;
+}
+
+/* Success states */
+.success-indicator {
+  @apply flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md text-green-700 dark:text-green-300;
+}
+
+/* Error states */
+.error-indicator {
+  @apply flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-300;
+}
+
+/* Info states */
+.info-indicator {
+  @apply flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-blue-700 dark:text-blue-300;
+}
+
+/* Responsive design helpers */
+@media (max-width: 768px) {
+  .sidebar-mobile {
+    @apply fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out;
+  }
+  
+  .sidebar-mobile.collapsed {
+    @apply -translate-x-full;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    @apply hidden;
+  }
+}
