@@ -13,6 +13,7 @@ import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FontPreviewer } from "./font-previewer"
 import { Scene } from "@babylonjs/core"
+import { UVTextEditor } from "./uv-text-editor"
 
 interface MeshData {
   name: string;
@@ -59,26 +60,8 @@ interface AppSidebarProps {
   setSelectedMesh: (mesh: string | null) => void;
   meshColors: Record<string, string>;
   setMeshColors: (colors: Record<string, string>) => void;
-  text3D: string;
-  setText3D: (text: string) => void;
-  textColor: string;
-  setTextColor: (color: string) => void;
-  textPosition: { x: number; y: number; z: number };
-  setTextPosition: (position: { x: number; y: number; z: number }) => void;
-  textRotation: { x: number; y: number; z: number };
-  setTextRotation: (rotation: { x: number; y: number; z: number }) => void;
-  textScale: { x: number; y: number; z: number };
-  setTextScale: (scale: { x: number; y: number; z: number }) => void;
-  textMaterial: 'standard' | 'emissive' | 'engraved';
-  setTextMaterial: (material: 'standard' | 'emissive' | 'engraved') => void;
-  selectedFont: string;
-  setSelectedFont: (font: string) => void;
-  isTextEditing?: boolean;
-  setIsTextEditing?: (editing: boolean) => void;
+  onTextTextureUpdate: (texture: string | null) => void;
   averageFps?: number;
-  performanceMode?: boolean;
-  setPerformanceMode?: (mode: boolean) => void;
-  resetView?: () => void;
 }
 
 export function AppSidebar({
@@ -91,26 +74,8 @@ export function AppSidebar({
   setSelectedMesh,
   meshColors,
   setMeshColors,
-  text3D,
-  setText3D,
-  textColor,
-  setTextColor,
-  textPosition,
-  setTextPosition,
-  textRotation,
-  setTextRotation,
-  textScale,
-  setTextScale,
-  textMaterial,
-  setTextMaterial,
-  selectedFont,
-  setSelectedFont,
-  isTextEditing,
-  setIsTextEditing,
+  onTextTextureUpdate,
   averageFps,
-  performanceMode,
-  setPerformanceMode,
-  resetView
 }: AppSidebarProps) {
   const { theme, setTheme } = useTheme()
   const [email, setEmail] = useState('')
@@ -145,16 +110,18 @@ export function AppSidebar({
 
   const fonts = [
     "helvetiker_regular.typeface.json",
-    "EBGaramond-Regular.ttf",
-    "EBGaramond-Bold.ttf",
-    "EBGaramond-Italic.ttf",
-    "EBGaramond-BoldItalic.ttf",
-    "CopperplateCC-Bold.ttf",
-    "CopperplateCC-Heavy.ttf",
-    "Bookman Old Style Regular.ttf",
-    "Bookman Old Style Bold.ttf",
-    "Bookman Old Style Italic.ttf",
-    "Bookman Old Style Bold Italic.ttf"
+    // NOTE: Text3D requires .json typeface files. 
+    // The TTF files listed below would require a conversion step.
+    // "EBGaramond-Regular.ttf",
+    // "EBGaramond-Bold.ttf",
+    // "EBGaramond-Italic.ttf",
+    // "EBGaramond-BoldItalic.ttf",
+    // "CopperplateCC-Bold.ttf",
+    // "CopperplateCC-Heavy.ttf",
+    // "Bookman Old Style Regular.ttf",
+    // "Bookman Old Style Bold.ttf",
+    // "Bookman Old Style Italic.ttf",
+    // "Bookman Old Style Bold Italic.ttf"
   ];
 
   const handleExport = async () => {
@@ -190,34 +157,34 @@ export function AppSidebar({
 
   return (
     <div className="h-full flex flex-col bg-white/95 dark:bg-slate-900/95">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+      {/* Header - More compact */}
+      <div className="flex items-center justify-between p-2 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
             Designer Panel
           </h2>
           
           {/* FPS Monitor */}
           {process.env.NODE_ENV === 'development' && averageFps && (
-            <div className="bg-black/80 text-white px-2 py-1 text-xs rounded font-mono backdrop-blur-sm">
+            <div className="bg-black/80 text-white px-1.5 py-0.5 text-xs rounded font-mono backdrop-blur-sm">
               <div className="flex items-center gap-1">
-                <div className={`w-1.5 h-1.5 rounded-full ${averageFps > 50 ? 'bg-green-400' : averageFps > 30 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
-                {averageFps.toFixed(1)} FPS
+                <div className={`w-1 h-1 rounded-full ${averageFps > 50 ? 'bg-green-400' : averageFps > 30 ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
+                {averageFps.toFixed(0)}
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Navigation Tabs - More compact */}
       <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
         <Button
           variant={activeSection === 'model' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => setActiveSection('model')}
-          className="flex-1 rounded-none border-r border-slate-200 dark:border-slate-700"
+          className="flex-1 rounded-none border-r border-slate-200 dark:border-slate-700 h-8 text-xs"
         >
-          <Layers className="h-4 w-4 mr-2" />
+          <Layers className="h-3 w-3 mr-1" />
           Model
         </Button>
         
@@ -225,9 +192,9 @@ export function AppSidebar({
           variant={activeSection === 'colors' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => setActiveSection('colors')}
-          className="flex-1 rounded-none border-r border-slate-200 dark:border-slate-700"
+          className="flex-1 rounded-none border-r border-slate-200 dark:border-slate-700 h-8 text-xs"
         >
-          <Palette className="h-4 w-4 mr-2" />
+          <Palette className="h-3 w-3 mr-1" />
           Colors
         </Button>
         
@@ -235,56 +202,65 @@ export function AppSidebar({
           variant={activeSection === 'text' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => setActiveSection('text')}
-          className="flex-1 rounded-none"
+          className="flex-1 rounded-none h-8 text-xs"
         >
-          <TextCursor className="h-4 w-4 mr-2" />
+          <TextCursor className="h-3 w-3 mr-1" />
           Text
         </Button>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+      {/* Content Area - More compact */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin">
         {activeSection === 'model' && (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Quarterboard Model</CardTitle>
+          <div className="space-y-2">
+            <Card className="border-blue-200 dark:border-blue-800">
+              <CardHeader className="pb-2 p-3 bg-blue-50 dark:bg-blue-900/20">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-blue-600" />
+                  Quarterboard Model
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="model-select" className="text-sm font-medium">Select Model</Label>
+              <CardContent className="space-y-3 p-3 pt-0">
+                <div className="space-y-1">
+                  <Label htmlFor="model-select" className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Choose Model Style
+                  </Label>
                   <select 
                     id="model-select"
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
                     title="Select a quarterboard model"
                   >
                     {models.map((model) => (
                       <option key={model} value={model}>
-                        {model.replace('.glb', '').replace(/^The /, '')}
+                        🏄‍♂️ {model.replace('.glb', '').replace(/^The /, '')}
                       </option>
                     ))}
                   </select>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Base Model Color</Label>
-                  <div className="flex gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Base Wood Color</Label>
+                  <div className="flex gap-1">
                     <Input
                       type="color"
                       value={modelColor}
                       onChange={(e) => setModelColor(e.target.value)}
-                      className="w-16 h-10 p-1 border rounded-md"
+                      className="w-12 h-8 p-1 border rounded-md cursor-pointer"
+                      title="Click to choose color"
                     />
                     <Input
                       type="text"
                       value={modelColor}
                       onChange={(e) => setModelColor(e.target.value)}
-                      className="flex-1 text-sm"
+                      className="flex-1 text-xs h-8"
                       placeholder="#8B4513"
                     />
                   </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    This sets the base color for all parts
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -292,51 +268,60 @@ export function AppSidebar({
         )}
 
         {activeSection === 'colors' && (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Mesh Colors</CardTitle>
+          <div className="space-y-2">
+            <Card className="border-purple-200 dark:border-purple-800">
+              <CardHeader className="pb-2 p-3 bg-purple-50 dark:bg-purple-900/20">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Palette className="h-4 w-4 text-purple-600" />
+                  Part Colors
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Select Mesh Part</Label>
+              <CardContent className="space-y-3 p-3 pt-0">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Select Part ({meshes.length} available)
+                  </Label>
                   <select 
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors"
                     value={selectedMesh || ""}
                     onChange={(e) => setSelectedMesh(e.target.value || null)}
                     title="Select a mesh part to customize"
                   >
-                    <option value="">Choose a part to color</option>
+                    <option value="">🎨 Choose a part to color</option>
                     {meshes.map((mesh) => (
                       <option key={mesh.name} value={mesh.name}>
-                        {mesh.name}
+                        🔧 {mesh.name}
                       </option>
                     ))}
                   </select>
                 </div>
                 
                 {selectedMesh && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Part Color</Label>
-                    <div className="flex gap-2">
+                  <div className="space-y-1 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <Label className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                      Color for "{selectedMesh}"
+                    </Label>
+                    <div className="flex gap-1">
                       <Input
                         type="color"
                         value={meshColors[selectedMesh] || modelColor}
                         onChange={(e) => handleMeshColorChange(selectedMesh, e.target.value)}
-                        className="w-16 h-10 p-1 border rounded-md"
+                        className="w-12 h-8 p-1 border rounded-md cursor-pointer"
+                        title="Click to choose color"
                       />
                       <Input
                         type="text"
                         value={meshColors[selectedMesh] || modelColor}
                         onChange={(e) => handleMeshColorChange(selectedMesh, e.target.value)}
-                        className="flex-1 text-sm"
+                        className="flex-1 text-xs h-8"
+                        placeholder="#8B4513"
                       />
                     </div>
                   </div>
                 )}
                 
-                <div className="text-xs text-slate-500 dark:text-slate-400 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-                  💡 Click on model parts in the 3D view to select them quickly
+                <div className="text-xs text-slate-500 dark:text-slate-400 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                  💡 <strong>Pro tip:</strong> Click on model parts in the 3D view to select them quickly
                 </div>
               </CardContent>
             </Card>
@@ -344,154 +329,17 @@ export function AppSidebar({
         )}
 
         {activeSection === 'text' && (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">3D Text</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Text Content</Label>
-                  <Input
-                    value={text3D}
-                    onChange={(e) => setText3D(e.target.value)}
-                    placeholder="Enter your text"
-                    className="text-sm"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Text Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={textColor}
-                      onChange={(e) => setTextColor(e.target.value)}
-                      className="w-16 h-10 p-1 border rounded-md"
-                    />
-                    <Input
-                      type="text"
-                      value={textColor}
-                      onChange={(e) => setTextColor(e.target.value)}
-                      className="flex-1 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="font-select" className="text-sm font-medium">Font</Label>
-                  <select 
-                    id="font-select"
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={selectedFont}
-                    onChange={(e) => setSelectedFont(e.target.value)}
-                    title="Select a font"
-                  >
-                    {fonts.map((font) => (
-                      <option key={font} value={font}>
-                        {font.replace('.ttf', '').replace('.json', '')}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-700">
-                  <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">Position</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-slate-500">X</Label>
-                      <Input
-                        type="number"
-                        value={textPosition.x.toFixed(1)}
-                        onChange={(e) => setTextPosition({...textPosition, x: parseFloat(e.target.value) || 0})}
-                        step={0.1}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-slate-500">Y</Label>
-                      <Input
-                        type="number"
-                        value={textPosition.y.toFixed(1)}
-                        onChange={(e) => setTextPosition({...textPosition, y: parseFloat(e.target.value) || 0})}
-                        step={0.1}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-slate-500">Z</Label>
-                      <Input
-                        type="number"
-                        value={textPosition.z.toFixed(1)}
-                        onChange={(e) => setTextPosition({...textPosition, z: parseFloat(e.target.value) || 0})}
-                        step={0.1}
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-md">
-                  <input
-                    type="checkbox"
-                    id="text-editing-mode"
-                    checked={isTextEditing}
-                    onChange={(e) => setIsTextEditing?.(e.target.checked)}
-                    className="rounded border-gray-300"
-                    title="Enable click-to-place text mode"
-                  />
-                  <Label htmlFor="text-editing-mode" className="text-sm">
-                    Enable click-to-place text
-                  </Label>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="space-y-2">
+            <UVTextEditor 
+              uvMap="/UV_MAP_OF_MODEL.png"
+              onTextUpdate={onTextTextureUpdate}
+            />
           </div>
         )}
       </div>
 
-      {/* Footer Actions */}
-      <div className="border-t border-slate-200 dark:border-slate-700 p-4 space-y-3">
-        {/* Performance and Text Controls */}
-        <div className="space-y-2">
-          {/* Performance Mode Toggle */}
-          {setPerformanceMode && (
-            <Button
-              variant={performanceMode ? "default" : "outline"}
-              size="sm"
-              onClick={() => setPerformanceMode(!performanceMode)}
-              className={`w-full h-8 ${performanceMode ? 'bg-green-600 hover:bg-green-700 text-white' : ''}`}
-            >
-              {performanceMode ? "Performance Mode" : "Quality Mode"}
-            </Button>
-          )}
-          
-          {/* Text Editing Toggle */}
-          {setIsTextEditing && (
-            <Button
-              variant={isTextEditing ? "default" : "outline"}
-              size="sm"
-              onClick={() => setIsTextEditing(!isTextEditing)}
-              className={`w-full h-8 ${isTextEditing ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
-            >
-              {isTextEditing ? "Exit Text Edit" : "Edit Text"}
-            </Button>
-          )}
-          
-          {/* Reset View Button */}
-          {resetView && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={resetView}
-              className="w-full h-8"
-            >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              Reset View
-            </Button>
-          )}
-        </div>
-        
+      {/* Footer Actions - More compact */}
+      <div className="border-t border-slate-200 dark:border-slate-700 p-2 space-y-2">
         <Button
           variant="outline"
           className="w-full"

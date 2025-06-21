@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
-import { ThreeScene } from './three-scene';
+import { Suspense, useMemo } from 'react';
+import { Canvas } from '@react-three/fiber';
+import * as THREE from 'three';
+import { ThreeScene, ModelLoadData } from './three-scene';
 import { useDevicePerformance } from '@/hooks/use-device-performance';
-import { Suspense } from 'react';
 
 interface MeshData {
   name: string;
@@ -12,84 +13,60 @@ interface MeshData {
 interface ModelViewerProps {
   modelUrl: string;
   modelColor: string;
-  onModelLoad?: (meshes: MeshData[]) => void;
-  text3D?: string;
-  textColor?: string;
-  textPosition?: { x: number; y: number; z: number };
-  textRotation?: { x: number; y: number; z: number };
-  textScale?: { x: number; y: number; z: number };
-  textMaterial?: 'standard' | 'emissive' | 'engraved';
+  onModelLoad?: (data: ModelLoadData) => void;
+  textTexture?: string | null;
   onMeshClick?: (meshName: string, mesh: any) => void;
   selectedMesh?: string | null;
   meshColors?: Record<string, string>;
-  isTextEditing?: boolean;
-  onTextPositionChange?: (position: { x: number; y: number; z: number }) => void;
 }
 
 export function R3FModelViewer({
   modelUrl,
   modelColor,
   onModelLoad,
-  text3D,
-  textColor,
-  textPosition,
-  textRotation,
-  textScale,
-  textMaterial,
+  textTexture,
   onMeshClick,
   selectedMesh,
   meshColors,
-  isTextEditing,
-  onTextPositionChange,
-}: ModelViewerProps) {  const [isLoading, setIsLoading] = useState(true);
+}: ModelViewerProps) {
   const { isLowEndDevice } = useDevicePerformance();
+
+  const pixelRatio = useMemo(() => 
+    isLowEndDevice ? 
+      Math.min(1.5, window.devicePixelRatio) : 
+      Math.min(2, window.devicePixelRatio),
+    [isLowEndDevice]
+  );
   
-  // Handle loading state
-  useEffect(() => {
-    if (modelUrl) {
-      setIsLoading(true);
-    }
-  }, [modelUrl]);
-  
-  const handleModelLoad = (meshes: MeshData[]) => {
-    setIsLoading(false);
-    if (onModelLoad) {
-      onModelLoad(meshes);
-    }
-  };
-  
+  const glOptions = useMemo(() => ({
+    antialias: !isLowEndDevice,
+    alpha: true,
+    preserveDrawingBuffer: true,
+    toneMapping: THREE.ACESFilmicToneMapping,
+    toneMappingExposure: 1.2
+  }), [isLowEndDevice]);
+
   return (
-    <div className="relative w-full h-full">
-      {/* Loading indicator */}
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
-          <div className="flex flex-col items-center gap-2">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-            <p className="text-sm text-muted-foreground">Loading 3D model...</p>
-          </div>
-        </div>
-      )}
-      
-      {/* Three.js scene */}
-      <Suspense fallback={null}>
-        <ThreeScene 
-          modelUrl={modelUrl}
-          modelColor={modelColor}
-          onModelLoad={handleModelLoad}
-          text3D={text3D}
-          textColor={textColor}
-          textPosition={textPosition}
-          textRotation={textRotation}
-          textScale={textScale}
-          textMaterial={textMaterial}
-          onMeshClick={onMeshClick}
-          selectedMesh={selectedMesh}
-          meshColors={meshColors}
-          isTextEditing={isTextEditing}
-          onTextPositionChange={onTextPositionChange}
-          performanceMode={isLowEndDevice}
-        />
-      </Suspense>
+    <div className="relative w-full h-full bg-slate-100 dark:bg-gray-800">
+      <Canvas
+        shadows
+        camera={{ position: [6, 4, 8], fov: 60, near: 0.1, far: 1000 }}
+        dpr={pixelRatio}
+        gl={glOptions}
+      >
+        <Suspense fallback={null}>
+          <ThreeScene 
+            modelUrl={modelUrl}
+            modelColor={modelColor}
+            onModelLoad={onModelLoad}
+            textTexture={textTexture}
+            onMeshClick={onMeshClick}
+            selectedMesh={selectedMesh}
+            meshColors={meshColors}
+            performanceMode={isLowEndDevice}
+          />
+        </Suspense>
+      </Canvas>
     </div>
   );
 }

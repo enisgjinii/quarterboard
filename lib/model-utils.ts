@@ -13,75 +13,94 @@ export function processModel(model: Object3D, options: {
   roughness?: number;
   preserveOriginalMaterials?: boolean;
 } = {}) {
-  if (!model) return;
+  if (!model) {
+    console.warn('processModel: No model provided');
+    return null;
+  }
   
-  // Default options
-  const materialOptions = {
-    color: options.color || '#ffffff',
-    metalness: options.metalness ?? 0.2,
-    roughness: options.roughness ?? 0.3,
-    preserveOriginalMaterials: options.preserveOriginalMaterials ?? true,
-  };
+  try {
+    console.log('processModel: Starting processing for model:', model);
+    
+    // Default options
+    const materialOptions = {
+      color: options.color || '#ffffff',
+      metalness: options.metalness ?? 0.2,
+      roughness: options.roughness ?? 0.3,
+      preserveOriginalMaterials: options.preserveOriginalMaterials ?? true,
+    };
+    
+    console.log('processModel: Using options:', materialOptions);
 
-  // Calculate bounding box and center
-  const box = new Box3().setFromObject(model);
-  const center = new Vector3();
-  const size = new Vector3();
-  box.getCenter(center);
-  box.getSize(size);
+    // Calculate bounding box and center
+    const box = new Box3().setFromObject(model);
+    const center = new Vector3();
+    const size = new Vector3();
+    box.getCenter(center);
+    box.getSize(size);
 
-  // Store original materials and apply new ones
-  model.traverse((child) => {
-    if (child instanceof Mesh) {
-      // Store original material for restoration if needed
-      if (materialOptions.preserveOriginalMaterials && !child.userData.originalMaterial) {
-        child.userData.originalMaterial = child.material;
-      }
-      
-      // Apply material if requested
-      if (options.color) {
-        // Create and apply a standard material that can be individually colored
-        const material = new MeshStandardMaterial({
-          color: new Color(materialOptions.color),
-          metalness: materialOptions.metalness,
-          roughness: materialOptions.roughness,
-          // Preserve texture maps if they exist
-          map: (child.material as MeshStandardMaterial)?.map || null,
-          normalMap: (child.material as MeshStandardMaterial)?.normalMap || null,
-        });
-        
-        child.material = material;
-      }
-      
-      // Apply fixes and optimizations
-      if (child.geometry) {
-        // Ensure geometry has vertex normals for proper lighting
-        if (!child.geometry.attributes.normal) {
-          child.geometry.computeVertexNormals();
+    console.log('processModel: Model bounds calculated:', { center, size });
+
+    // Store original materials and apply new ones
+    let meshCount = 0;
+    model.traverse((child) => {
+      if (child instanceof Mesh) {
+        meshCount++;
+        // Store original material for restoration if needed
+        if (materialOptions.preserveOriginalMaterials && !child.userData.originalMaterial) {
+          child.userData.originalMaterial = child.material;
         }
         
-        // Set up for better shadows and reflections
-        child.castShadow = true;
-        child.receiveShadow = true;
+        // Apply material if requested
+        if (options.color) {
+          // Create and apply a standard material that can be individually colored
+          const material = new MeshStandardMaterial({
+            color: new Color(materialOptions.color),
+            metalness: materialOptions.metalness,
+            roughness: materialOptions.roughness,
+            // Preserve texture maps if they exist
+            map: (child.material as MeshStandardMaterial)?.map || null,
+            normalMap: (child.material as MeshStandardMaterial)?.normalMap || null,
+          });
+          
+          child.material = material;
+        }
+        
+        // Apply fixes and optimizations
+        if (child.geometry) {
+          // Ensure geometry has vertex normals for proper lighting
+          if (!child.geometry.attributes.normal) {
+            child.geometry.computeVertexNormals();
+          }
+          
+          // Set up for better shadows and reflections
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+        
+        // Add interaction capabilities
+        child.userData.clickable = true;
+        child.userData.hoverable = true;
       }
-      
-      // Add interaction capabilities
-      child.userData.clickable = true;
-      child.userData.hoverable = true;
-    }
-  });
-  
-  return {
-    model,
-    size,
-    center,
-    dimensions: {
-      width: size.x,
-      height: size.y,
-      depth: size.z,
-      maxDimension: Math.max(size.x, size.y, size.z)
-    }
-  };
+    });
+    
+    console.log(`processModel: Processed ${meshCount} meshes successfully`);
+    
+    return {
+      model,
+      size,
+      center,
+      dimensions: {
+        width: size.x,
+        height: size.y,
+        depth: size.z,
+        maxDimension: Math.max(size.x, size.y, size.z)
+      }
+    };
+    
+  } catch (error) {
+    console.error('processModel: Error processing model:', error);
+    throw error; // Re-throw to be handled by caller
+  }
 }
 
 /**
