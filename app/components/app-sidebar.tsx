@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Type, Sun, Moon, Download, Mail, Video, Square, Palette, TextCursor, Layers, RotateCcw } from "lucide-react"
+import { Type, Sun, Moon, Download, Mail, Video, Square, Palette, TextCursor, Layers, RotateCcw, Box } from "lucide-react"
 import { useTheme } from "next-themes"
 import React, { useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FontPreviewer } from "./font-previewer"
 import { Scene } from "@babylonjs/core"
 import { UVTextEditor } from "./uv-text-editor"
+import { MeshInfoPanel } from "./mesh-info-panel"
+import { ModelLoadData } from "./three-scene"
 
 interface MeshData {
   name: string;
@@ -61,6 +63,7 @@ interface AppSidebarProps {
   meshColors: Record<string, string>;
   setMeshColors: (colors: Record<string, string>) => void;
   onTextTextureUpdate: (texture: string | null) => void;
+  modelData?: ModelLoadData;
   averageFps?: number;
 }
 
@@ -75,6 +78,7 @@ export function AppSidebar({
   meshColors,
   setMeshColors,
   onTextTextureUpdate,
+  modelData,
   averageFps,
 }: AppSidebarProps) {
   const { theme, setTheme } = useTheme()
@@ -83,7 +87,7 @@ export function AppSidebar({
   const [isSending, setIsSending] = useState(false)
   const [recordingDuration, setRecordingDuration] = useState(0)
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const [activeSection, setActiveSection] = useState<'model' | 'text' | 'colors'>('model')
+  const [activeSection, setActiveSection] = useState<'model' | 'text' | 'colors' | 'info'>('model')
 
   // Handle mesh color changes
   const handleMeshColorChange = (meshName: string, color: string) => {
@@ -202,10 +206,20 @@ export function AppSidebar({
           variant={activeSection === 'text' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => setActiveSection('text')}
-          className="flex-1 rounded-none h-8 text-xs"
+          className="flex-1 rounded-none border-r border-slate-200 dark:border-slate-700 h-8 text-xs"
         >
           <TextCursor className="h-3 w-3 mr-1" />
           Text
+        </Button>
+        
+        <Button
+          variant={activeSection === 'info' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveSection('info')}
+          className="flex-1 rounded-none h-8 text-xs"
+        >
+          <Box className="h-3 w-3 mr-1" />
+          Info
         </Button>
       </div>
 
@@ -331,8 +345,18 @@ export function AppSidebar({
         {activeSection === 'text' && (
           <div className="space-y-2">
             <UVTextEditor 
-              uvMapUrl="/UV_MAP_OF_MODEL.png"
+              modelUrl={`/models/${encodeURIComponent(selectedModel)}`}
               onTextUpdate={onTextTextureUpdate}
+            />
+          </div>
+        )}
+
+        {activeSection === 'info' && (
+          <div className="space-y-2">
+            <MeshInfoPanel
+              modelData={modelData}
+              selectedMesh={selectedMesh}
+              onMeshSelect={setSelectedMesh}
             />
           </div>
         )}

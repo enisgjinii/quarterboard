@@ -1,38 +1,148 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Type, Download, Upload, Lock, Unlock, Move, ZoomIn, RotateCw } from "lucide-react"
-import { Canvas, FabricText, FabricImage, type FabricObject } from 'fabric'
+import { Type, Download, Upload, Lock, Unlock, Move, ZoomIn, RotateCw, Image } from "lucide-react"
 import debounce from 'lodash.debounce'
 
 interface UVTextEditorProps {
   onTextUpdate: (texture: string | null) => void
-  uvMapUrl?: string
+  modelUrl?: string
+  onUVMapExtracted?: (uvMapUrl: string) => void
 }
 
-export function UVTextEditor({ onTextUpdate, uvMapUrl }: UVTextEditorProps) {
+export function UVTextEditor({ onTextUpdate, modelUrl, onUVMapExtracted }: UVTextEditorProps) {
   const [text, setText] = useState("YOUR TEXT")
-  const [fontSize, setFontSize] = useState(60)
+  const [fontSize, setFontSize] = useState(40)  // Smaller default font
   const [fontFamily, setFontFamily] = useState("Arial")
-  const [textColor, setTextColor] = useState("#ffffff")  // White text for embossed effect
+  const [textColor, setTextColor] = useState("#ffffff")
   const [isLocked, setIsLocked] = useState(false)
   const [embossEffect, setEmbossEffect] = useState(true)
   const [embossDepth, setEmbossDepth] = useState(3)
+  const [uvMapUrl, setUvMapUrl] = useState<string | null>(null)
+  const [isExtractingUV, setIsExtractingUV] = useState(false)
+  const [fabricLoaded, setFabricLoaded] = useState(false)
   
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const fabricCanvasRef = useRef<Canvas | null>(null)
-  const textObjectRef = useRef<FabricText | null>(null)
+  const fabricCanvasRef = useRef<any>(null)
+  const textObjectRef = useRef<any>(null)
+  const fabricInstanceRef = useRef<any>(null)
+
+  // Load fabric.js dynamically
+  useEffect(() => {
+    const loadFabric = async () => {
+      try {
+        const fabricModule = await import('fabric')
+        // For fabric v6, the main fabric object is the default export
+        fabricInstanceRef.current = fabricModule.default || fabricModule
+        setFabricLoaded(true)
+        console.log('Fabric.js loaded successfully')
+      } catch (error) {
+        console.error('Failed to load fabric.js:', error)
+      }
+    }
+    
+    loadFabric()
+  }, [])
+
+  // Function to extract UV map from model
+  const extractUVMap = useCallback(async () => {
+    if (!modelUrl) return
+    
+    setIsExtractingUV(true)
+    try {
+      // Create a temporary scene to load the model
+      const { Scene, FreeCamera, Engine, MeshBuilder } = await import('@babylonjs/core')
+      const { GLTFFileLoader } = await import('@babylonjs/loaders')
+      
+      const canvas = document.createElement('canvas')
+      canvas.width = 256  // Smaller UV map
+      canvas.height = 256
+      const engine = new Engine(canvas, true)
+      const scene = new Scene(engine)
+      
+      // Load the model
+      const loader = new GLTFFileLoader()
+      const result = await loader.importMeshAsync('', '', modelUrl, scene)
+      
+      // Extract UV coordinates and create UV map
+      const uvMapCanvas = document.createElement('canvas')
+      uvMapCanvas.width = 256
+      uvMapCanvas.height = 256
+      const ctx = uvMapCanvas.getContext('2d')
+      
+      if (ctx) {
+        // Clear with light background
+        ctx.fillStyle = '#f8f9fa'
+        ctx.fillRect(0, 0, 256, 256)
+        
+        // Draw UV coordinates
+        ctx.strokeStyle = '#6c757d'
+        ctx.lineWidth = 1
+        
+        result.meshes.forEach((mesh) => {
+          if (mesh.geometry) {
+            const positions = mesh.geometry.getVerticesData('position')
+            const uvs = mesh.geometry.getVerticesData('uv')
+            const indices = mesh.geometry.getIndices()
+            
+            if (positions && uvs && indices) {
+              // Draw UV wireframe
+              for (let i = 0; i < indices.length; i += 3) {
+                const i1 = indices[i] * 2
+                const i2 = indices[i + 1] * 2
+                const i3 = indices[i + 2] * 2
+                
+                const u1 = uvs[i1] * 256
+                const v1 = (1 - uvs[i1 + 1]) * 256
+                const u2 = uvs[i2] * 256
+                const v2 = (1 - uvs[i2 + 1]) * 256
+                const u3 = uvs[i3] * 256
+                const v3 = (1 - uvs[i3 + 1]) * 256
+                
+                ctx.beginPath()
+                ctx.moveTo(u1, v1)
+                ctx.lineTo(u2, v2)
+                ctx.lineTo(u3, v3)
+                ctx.closePath()
+                ctx.stroke()
+              }
+            }
+          }
+        })
+        
+        // Convert to data URL
+        const uvMapDataUrl = uvMapCanvas.toDataURL('image/png')
+        setUvMapUrl(uvMapDataUrl)
+        onUVMapExtracted?.(uvMapDataUrl)
+      }
+      
+      engine.dispose()
+    } catch (error) {
+      console.error('Error extracting UV map:', error)
+    } finally {
+      setIsExtractingUV(false)
+    }
+  }, [modelUrl, onUVMapExtracted])
+
+  // Extract UV map when model changes
+  useEffect(() => {
+    if (modelUrl) {
+      extractUVMap()
+    }
+  }, [modelUrl, extractUVMap])
 
   const debouncedUpdate = useCallback(
-    debounce((canvas: Canvas) => {
-      // Create a temporary canvas for the texture with higher resolution
+    debounce((canvas: any) => {
+      if (!fabricInstanceRef.current) return
+      
+      // Create a temporary canvas for the texture with smaller resolution
       const tempCanvas = document.createElement('canvas')
-      tempCanvas.width = 2048  // Higher resolution for better quality
-      tempCanvas.height = 2048
+      tempCanvas.width = 1024  // Smaller resolution
+      tempCanvas.height = 1024
       const tempCtx = tempCanvas.getContext('2d')
       
       if (tempCtx) {
@@ -40,12 +150,12 @@ export function UVTextEditor({ onTextUpdate, uvMapUrl }: UVTextEditorProps) {
         tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
         
         // Scale factor to match the higher resolution
-        const scaleFactor = tempCanvas.width / 512  // 512 is the fabric canvas size
+        const scaleFactor = tempCanvas.width / 256  // 256 is the fabric canvas size
         
         // Draw only the text objects (no background)
         const objects = canvas.getObjects()
-        objects.forEach((obj: FabricObject) => {
-          if (obj instanceof FabricText) {
+        objects.forEach((obj: any) => {
+          if (obj instanceof fabricInstanceRef.current.Text) {
             // Draw emboss effect if enabled
             if (embossEffect) {
               // Shadow for depth effect
@@ -108,7 +218,7 @@ export function UVTextEditor({ onTextUpdate, uvMapUrl }: UVTextEditorProps) {
         
         // Convert to data URL and send update
         const dataUrl = tempCanvas.toDataURL('image/png')
-        console.log('Generated texture with', objects.filter((o: FabricObject) => o instanceof FabricText).length, 'text objects')
+        console.log('Generated texture with', objects.filter((o: any) => o instanceof fabricInstanceRef.current.Text).length, 'text objects')
         onTextUpdate(dataUrl)
       }
     }, 250),
@@ -117,133 +227,170 @@ export function UVTextEditor({ onTextUpdate, uvMapUrl }: UVTextEditorProps) {
 
   // Initialize Fabric.js canvas
   useEffect(() => {
-    if (!canvasRef.current) return
+    if (!canvasRef.current || !fabricLoaded || !fabricInstanceRef.current) return
     
-    // Set canvas dimensions
-    canvasRef.current.width = 512
-    canvasRef.current.height = 512
-    
-    const canvas = new Canvas(canvasRef.current, {
-      width: 512,
-      height: 512,
-      backgroundColor: '#f0f0f0',
-    })
-    
-    fabricCanvasRef.current = canvas
-    
-    // Load UV map as background if provided
-    if (uvMapUrl) {
-      FabricImage.fromURL(uvMapUrl).then((img: FabricImage) => {
-        img.scaleToWidth(512)
-        img.scaleToHeight(512)
-        img.selectable = false
-        img.evented = false
-        canvas.setBackgroundImage(img, () => canvas.renderAll())
-      })
+    const initFabric = () => {
+      try {
+        const fabricInstance = fabricInstanceRef.current
+        
+        // Set canvas dimensions - smaller size
+        if (canvasRef.current) {
+          canvasRef.current.width = 256
+          canvasRef.current.height = 256
+        }
+        
+        const canvas = new fabricInstance.Canvas(canvasRef.current, {
+          width: 256,
+          height: 256,
+          backgroundColor: '#f0f0f0',
+        })
+        
+        // Add event listeners
+        canvas.on('object:modified', () => debouncedUpdate(canvas))
+        canvas.on('object:moving', () => debouncedUpdate(canvas))
+        canvas.on('object:scaling', () => debouncedUpdate(canvas))
+        canvas.on('object:rotating', () => debouncedUpdate(canvas))
+        
+        fabricCanvasRef.current = canvas
+        
+        // Load UV map as background if available
+        if (uvMapUrl) {
+          fabricInstance.Image.fromURL(uvMapUrl, (img: any) => {
+            img.scaleToWidth(256)
+            img.scaleToHeight(256)
+            img.set({
+              selectable: false,
+              evented: false
+            })
+            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas))
+          })
+        }
+        
+        // Create initial text object
+        const textObj = new fabricInstance.Text(text, {
+          left: 128,  // Center of 256x256 canvas
+          top: 75,
+          fontSize: fontSize,
+          fontFamily: fontFamily,
+          fill: textColor,
+          originX: 'center',
+          originY: 'center',
+          lockRotation: isLocked,
+          lockScalingX: isLocked,
+          lockScalingY: isLocked,
+          lockMovementX: isLocked,
+          lockMovementY: isLocked,
+        })
+        
+        canvas.add(textObj)
+        textObjectRef.current = textObj
+        canvas.renderAll()
+        debouncedUpdate(canvas)
+        
+        console.log('Fabric canvas initialized successfully')
+      } catch (error) {
+        console.error('Error initializing fabric canvas:', error)
+      }
     }
     
-    // Create initial text object
-    const textObj = new FabricText(text, {
-      left: 256,
-      top: 150,
-      fontSize: fontSize,
-      fontFamily: fontFamily,
-      fill: textColor,
-      originX: 'center',
-      originY: 'center',
-      lockRotation: isLocked,
-      lockScalingX: isLocked,
-      lockScalingY: isLocked,
-      lockMovementX: isLocked,
-      lockMovementY: isLocked,
-    })
-    
-    canvas.add(textObj)
-    textObjectRef.current = textObj
-    
-    // Update texture on any change
-    canvas.on('object:modified', () => debouncedUpdate(canvas))
-    canvas.on('object:moving', () => debouncedUpdate(canvas))
-    canvas.on('object:scaling', () => debouncedUpdate(canvas))
-    canvas.on('object:rotating', () => debouncedUpdate(canvas))
-    
-    // Initial texture generation
-    debouncedUpdate(canvas)
-    
-    return () => {
-      canvas.dispose()
-    }
-  }, [uvMapUrl])
+    initFabric()
+  }, [canvasRef, fabricLoaded, uvMapUrl, text, fontSize, fontFamily, textColor, isLocked, debouncedUpdate])
 
   // Update text properties
   useEffect(() => {
-    if (!textObjectRef.current || !fabricCanvasRef.current) return
+    if (!textObjectRef.current || !fabricCanvasRef.current || !fabricLoaded || !fabricInstanceRef.current) return
     
-    textObjectRef.current.set({
-      text: text,
-      fontSize: fontSize,
-      fontFamily: fontFamily,
-      fill: textColor,
-      lockRotation: isLocked,
-      lockScalingX: isLocked,
-      lockScalingY: isLocked,
-      lockMovementX: isLocked,
-      lockMovementY: isLocked,
-    })
+    const updateText = () => {
+      try {
+        textObjectRef.current.set({
+          text: text,
+          fontSize: fontSize,
+          fontFamily: fontFamily,
+          fill: textColor,
+          lockRotation: isLocked,
+          lockScalingX: isLocked,
+          lockScalingY: isLocked,
+          lockMovementX: isLocked,
+          lockMovementY: isLocked,
+        })
+        
+        fabricCanvasRef.current.renderAll()
+        debouncedUpdate(fabricCanvasRef.current)
+      } catch (error) {
+        console.error('Error updating text:', error)
+      }
+    }
     
-    fabricCanvasRef.current.renderAll()
-    debouncedUpdate(fabricCanvasRef.current)
-  }, [text, fontSize, fontFamily, textColor, isLocked, debouncedUpdate])
+    updateText()
+  }, [text, fontSize, fontFamily, textColor, isLocked, debouncedUpdate, fabricLoaded])
 
   const handleAddText = () => {
-    if (!fabricCanvasRef.current) return
+    if (!fabricCanvasRef.current || !fabricLoaded || !fabricInstanceRef.current) return
     
-    const newText = new FabricText('NEW TEXT', {
-      left: Math.random() * 400 + 50,
-      top: Math.random() * 400 + 50,
-      fontSize: 40,
-      fontFamily: fontFamily,
-      fill: textColor,
-      originX: 'center',
-      originY: 'center',
-    })
-    
-    fabricCanvasRef.current.add(newText)
-    fabricCanvasRef.current.setActiveObject(newText)
-    fabricCanvasRef.current.renderAll()
-    debouncedUpdate(fabricCanvasRef.current)
+    try {
+      const fabricInstance = fabricInstanceRef.current
+      
+      const newText = new fabricInstance.Text('NEW TEXT', {
+        left: Math.random() * 200 + 25,
+        top: Math.random() * 200 + 25,
+        fontSize: 30,
+        fontFamily: fontFamily,
+        fill: textColor,
+        originX: 'center',
+        originY: 'center',
+      })
+      
+      fabricCanvasRef.current.add(newText)
+      fabricCanvasRef.current.setActiveObject(newText)
+      fabricCanvasRef.current.renderAll()
+      debouncedUpdate(fabricCanvasRef.current)
+    } catch (error) {
+      console.error('Error adding text:', error)
+    }
   }
 
   const handleDeleteSelected = () => {
     if (!fabricCanvasRef.current) return
     
-    const activeObject = fabricCanvasRef.current.getActiveObject()
-    if (activeObject && activeObject !== textObjectRef.current) {
-      fabricCanvasRef.current.remove(activeObject)
-      fabricCanvasRef.current.renderAll()
-      debouncedUpdate(fabricCanvasRef.current)
+    try {
+      const activeObject = fabricCanvasRef.current.getActiveObject()
+      if (activeObject && activeObject !== textObjectRef.current) {
+        fabricCanvasRef.current.remove(activeObject)
+        fabricCanvasRef.current.renderAll()
+        debouncedUpdate(fabricCanvasRef.current)
+      }
+    } catch (error) {
+      console.error('Error deleting selected object:', error)
     }
   }
 
   const handleClearAll = () => {
-    if (!fabricCanvasRef.current || !textObjectRef.current) return
+    if (!fabricCanvasRef.current || !textObjectRef.current || !fabricLoaded || !fabricInstanceRef.current) return
     
-    fabricCanvasRef.current.clear()
-    fabricCanvasRef.current.add(textObjectRef.current)
-    
-    // Re-add UV map background if it exists
-    if (uvMapUrl) {
-      FabricImage.fromURL(uvMapUrl).then((img: FabricImage) => {
-        img.scaleToWidth(512)
-        img.scaleToHeight(512)
-        img.selectable = false
-        img.evented = false
-        fabricCanvasRef.current?.setBackgroundImage(img, () => fabricCanvasRef.current?.renderAll())
-      })
+    try {
+      const fabricInstance = fabricInstanceRef.current
+      
+      fabricCanvasRef.current.clear()
+      fabricCanvasRef.current.add(textObjectRef.current)
+      
+      // Re-add UV map background if it exists
+      if (uvMapUrl) {
+        fabricInstance.Image.fromURL(uvMapUrl, (img: any) => {
+          img.scaleToWidth(256)
+          img.scaleToHeight(256)
+          img.set({
+            selectable: false,
+            evented: false
+          })
+          fabricCanvasRef.current!.setBackgroundImage(img, fabricCanvasRef.current!.renderAll.bind(fabricCanvasRef.current!))
+        })
+      }
+      
+      fabricCanvasRef.current.renderAll()
+      debouncedUpdate(fabricCanvasRef.current)
+    } catch (error) {
+      console.error('Error clearing canvas:', error)
     }
-    
-    fabricCanvasRef.current.renderAll()
-    debouncedUpdate(fabricCanvasRef.current)
   }
 
   return (
@@ -251,116 +398,135 @@ export function UVTextEditor({ onTextUpdate, uvMapUrl }: UVTextEditorProps) {
       <CardHeader className="pb-2 p-3 bg-green-50 dark:bg-green-900/20">
         <CardTitle className="text-sm flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Move className="h-4 w-4 text-green-600" />
-            UV Text Editor (Embossed)
+            <Image className="h-4 w-4 text-green-600" />
+            UV Text Editor
           </div>
-          <Button 
-            variant={isLocked ? "destructive" : "secondary"} 
-            size="sm" 
-            onClick={() => setIsLocked(!isLocked)} 
-            className="h-7 px-2"
-          >
-            {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-          </Button>
+          <div className="flex gap-1">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={extractUVMap}
+              disabled={isExtractingUV}
+              className="h-7 px-2"
+            >
+              {isExtractingUV ? 'Extracting...' : <Image className="h-3 w-3" />}
+            </Button>
+            <Button 
+              variant={isLocked ? "destructive" : "secondary"} 
+              size="sm" 
+              onClick={() => setIsLocked(!isLocked)} 
+              className="h-7 px-2"
+            >
+              {isLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+            </Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-3 pt-2 space-y-3">
-        <div className="space-y-1">
-          <Label className="text-xs">Main Text</Label>
-          <Input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            className="h-8 text-sm"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <Label className="text-xs">Font Family</Label>
-            <Select value={fontFamily} onValueChange={setFontFamily}>
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {["Arial", "Helvetica", "Times New Roman", "Courier New", "Georgia", "Verdana", "Impact"].map((font) => (
-                  <SelectItem key={font} value={font} className="text-sm">
-                    {font}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {!fabricLoaded ? (
+          <div className="text-center py-8 text-sm text-slate-500">
+            Loading text editor...
           </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs">Text Color</Label>
-            <Input
-              type="color"
-              value={textColor}
-              onChange={(e) => setTextColor(e.target.value)}
-              className="w-full h-8 p-1"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-xs">Font Size: {fontSize}px</Label>
-          <Slider
-            value={[fontSize]}
-            onValueChange={([value]) => setFontSize(value)}
-            min={12}
-            max={150}
-            step={1}
-          />
-        </div>
-
-        <div className="space-y-2 p-2 bg-green-50 dark:bg-green-900/20 rounded">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="emboss-checkbox" className="text-xs">Emboss Effect</Label>
-            <input
-              id="emboss-checkbox"
-              type="checkbox"
-              checked={embossEffect}
-              onChange={(e) => setEmbossEffect(e.target.checked)}
-              className="h-4 w-4"
-              aria-label="Toggle emboss effect"
-            />
-          </div>
-          {embossEffect && (
+        ) : (
+          <>
             <div className="space-y-1">
-              <Label className="text-xs">Emboss Depth: {embossDepth}px</Label>
+              <Label className="text-xs">Main Text</Label>
+              <Input
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                className="h-8 text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Font Family</Label>
+                <Select value={fontFamily} onValueChange={setFontFamily}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["Arial", "Helvetica", "Times New Roman", "Courier New", "Georgia", "Verdana", "Impact"].map((font) => (
+                      <SelectItem key={font} value={font} className="text-sm">
+                        {font}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Text Color</Label>
+                <Input
+                  type="color"
+                  value={textColor}
+                  onChange={(e) => setTextColor(e.target.value)}
+                  className="w-full h-8 p-1"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Font Size: {fontSize}px</Label>
               <Slider
-                value={[embossDepth]}
-                onValueChange={([value]) => setEmbossDepth(value)}
-                min={1}
-                max={10}
+                value={[fontSize]}
+                onValueChange={([value]) => setFontSize(value)}
+                min={8}
+                max={80}
                 step={1}
               />
             </div>
-          )}
-        </div>
 
-        <div className="flex gap-2">
-          <Button onClick={handleAddText} size="sm" variant="outline" className="flex-1">
-            Add Text
-          </Button>
-          <Button onClick={handleDeleteSelected} size="sm" variant="outline" className="flex-1">
-            Delete Selected
-          </Button>
-          <Button onClick={handleClearAll} size="sm" variant="outline" className="flex-1">
-            Clear All
-          </Button>
-        </div>
+            <div className="space-y-2 p-2 bg-green-50 dark:bg-green-900/20 rounded">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="emboss-checkbox" className="text-xs">Emboss Effect</Label>
+                <input
+                  id="emboss-checkbox"
+                  type="checkbox"
+                  checked={embossEffect}
+                  onChange={(e) => setEmbossEffect(e.target.checked)}
+                  className="h-4 w-4"
+                  aria-label="Toggle emboss effect"
+                />
+              </div>
+              {embossEffect && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Emboss Depth: {embossDepth}px</Label>
+                  <Slider
+                    value={[embossDepth]}
+                    onValueChange={([value]) => setEmbossDepth(value)}
+                    min={1}
+                    max={8}
+                    step={1}
+                  />
+                </div>
+              )}
+            </div>
 
-        <div className="border rounded-md bg-white">
-          <canvas 
-            ref={canvasRef}
-            className="w-full h-auto rounded"
-          />
-        </div>
-        
-        <p className="text-xs text-center text-slate-500 dark:text-slate-400">
-          {isLocked ? 'Unlock to edit text. UV map shown as reference.' : 'Click and drag to move text. Use handles to resize/rotate.'}
-        </p>
+            <div className="flex gap-2">
+              <Button onClick={handleAddText} size="sm" variant="outline" className="flex-1">
+                Add Text
+              </Button>
+              <Button onClick={handleDeleteSelected} size="sm" variant="outline" className="flex-1">
+                Delete
+              </Button>
+              <Button onClick={handleClearAll} size="sm" variant="outline" className="flex-1">
+                Clear
+              </Button>
+            </div>
+
+            <div className="border rounded-md bg-white">
+              <canvas 
+                ref={canvasRef}
+                className="w-full h-auto rounded"
+              />
+            </div>
+            
+            <p className="text-xs text-center text-slate-500 dark:text-slate-400">
+              {isLocked ? 'Unlock to edit text. UV map shown as reference.' : 'Click and drag to move text. Use handles to resize/rotate.'}
+            </p>
+          </>
+        )}
       </CardContent>
     </Card>
   )

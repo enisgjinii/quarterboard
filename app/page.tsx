@@ -60,6 +60,7 @@ export default function Component() {
   
   // State for the dynamically generated text texture
   const [textTexture, setTextTexture] = useState<string | null>(null);
+  const [modelData, setModelData] = useState<ModelLoadData | undefined>(undefined);
   
   const { theme, setTheme } = useTheme()
   const [selectedFont, setSelectedFont] = useState("helvetiker_regular.typeface.json")
@@ -72,6 +73,7 @@ export default function Component() {
   const handleModelLoad = useCallback((data: ModelLoadData) => {
     console.log(`✅ page.tsx: Model loaded with ${data.meshes.length} meshes.`);
     setMeshes(data.meshes);
+    setModelData(data);
     setAppStatus('ready');
     setStatusMessage(`Model ready: ${data.meshes.length} parts`);
 
@@ -132,6 +134,7 @@ export default function Component() {
           meshColors={meshColors}
           setMeshColors={setMeshColors}
           onTextTextureUpdate={setTextTexture}
+          modelData={modelData}
         />
       </div>
       

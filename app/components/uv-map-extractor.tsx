@@ -174,8 +174,8 @@ export function UVMapExtractor({ scene, onExtract, onTextureUpdate }: UVMapExtra
     document.body.removeChild(link)
   }
 
-  const handleTextureUpdate = (texture: string) => {
-    if (onTextureUpdate) {
+  const handleTextureUpdate = (texture: string | null) => {
+    if (texture && onTextureUpdate) {
       onTextureUpdate(texture)
     }
   }
@@ -240,9 +240,8 @@ export function UVMapExtractor({ scene, onExtract, onTextureUpdate }: UVMapExtra
           </div>
         )}
 
-        {selectedUVMap && (
+        {selectedUVMap && onTextureUpdate && (
           <UVTextEditor
-            uvMap={selectedUVMap}
             onTextUpdate={handleTextureUpdate}
           />
         )}
