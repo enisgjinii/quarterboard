@@ -36,9 +36,10 @@ function Model({
 }: ModelProps) {
   const { scene } = useGLTF(url);
   const [clonedScene, setClonedScene] = useState<THREE.Object3D | null>(null);
+  const [originalTextures, setOriginalTextures] = useState<Map<string, THREE.Texture | null>>(new Map());
   
-  // Use the hook to handle texture loading gracefully
-  const dynamicTexture = useTexture(textureUrl || '/placeholder-texture.png');
+  // Don't use useTexture for dynamic textures - handle them manually
+  const textTextureRef = useRef<THREE.Texture | null>(null);
 
   // Effect for initial model processing (runs once per model)
   useEffect(() => {
@@ -59,15 +60,28 @@ function Model({
 
     // --- Initial material setup and mesh collection ---
     const foundMeshes: MeshData[] = [];
+    const textures = new Map<string, THREE.Texture | null>();
+    
     cloned.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.castShadow = true;
         child.receiveShadow = true;
-        child.material = new THREE.MeshStandardMaterial({
+        
+        // Store original texture if it exists
+        const originalMat = child.material as THREE.MeshStandardMaterial;
+        if (originalMat && originalMat.map) {
+          textures.set(child.name || child.uuid, originalMat.map);
+        }
+        
+        // Create new material but preserve the original UV mapping
+        const newMaterial = new THREE.MeshStandardMaterial({
           color: modelColor,
           metalness: 0.2,
           roughness: 0.5,
+          map: originalMat?.map || null, // Preserve original texture
         });
+        
+        child.material = newMaterial;
         
         const meshName = child.name || `mesh_${foundMeshes.length}`;
         child.name = meshName;
@@ -76,6 +90,7 @@ function Model({
       }
     });
 
+    setOriginalTextures(textures);
     setClonedScene(cloned);
     if (onModelLoad) {
       onModelLoad({ meshes: foundMeshes, bounds: { center, size, scale } });
@@ -84,27 +99,113 @@ function Model({
     // --- Cleanup ---
     return () => {
       cleanupModel(cloned);
+      textTextureRef.current?.dispose();
     };
   }, [scene, url]); // Intentionally exclude modelColor and onModelLoad to run only once
 
-  // Effect for applying texture updates
+  // Effect for applying text texture updates
   useEffect(() => {
-    if (!clonedScene || !dynamicTexture) return;
+    if (!clonedScene) return;
 
-    // The placeholder won't have a generated URL, so we don't want to apply it
-    if (!textureUrl) return;
+    if (!textureUrl) {
+      // Restore original materials when no text texture
+      console.log(`🔄 Restoring original materials for ${url}`);
+      
+      clonedScene.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          const originalTexture = originalTextures.get(child.name || child.uuid);
+          
+          // Create fresh material with original properties
+          const newMaterial = new THREE.MeshStandardMaterial({
+            color: modelColor,
+            metalness: 0.2,
+            roughness: 0.5,
+            map: originalTexture || null,
+          });
+          
+          child.material = newMaterial;
+          child.material.needsUpdate = true;
+        }
+      });
+      return;
+    }
 
-    console.log(`🎨 Applying texture to ${url}`);
-    dynamicTexture.flipY = false;
-    dynamicTexture.needsUpdate = true;
-
-    clonedScene.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        (child.material as THREE.MeshStandardMaterial).map = dynamicTexture;
-        (child.material as THREE.MeshStandardMaterial).needsUpdate = true;
+    console.log(`🎨 Applying embossed text texture to ${url}`);
+    
+    // Load the text texture
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      textureUrl,
+      (texture) => {
+        texture.flipY = false;
+        texture.needsUpdate = true;
+        textTextureRef.current = texture;
+        
+        // Apply embossed text effect
+        clonedScene.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            const material = child.material as THREE.MeshStandardMaterial;
+            const originalTexture = originalTextures.get(child.name || child.uuid);
+            
+            // Create a new material with embossed effect
+            const newMaterial = new THREE.MeshStandardMaterial({
+              color: material.color,
+              metalness: 0.3,  // Slightly more metallic for embossed look
+              roughness: 0.4,  // Slightly smoother for embossed look
+              map: originalTexture || null,
+              // Use the text texture as bump map for embossed effect
+              bumpMap: texture,
+              bumpScale: 0.05,  // Adjust for visible embossing
+              // Also use as displacement for actual geometry displacement
+              displacementMap: texture,
+              displacementScale: 0.02,
+              displacementBias: -0.01,
+            });
+            
+            // If no original texture, create a combined texture with the base color
+            if (!originalTexture) {
+              const canvas = document.createElement('canvas');
+              canvas.width = 2048;
+              canvas.height = 2048;
+              const ctx = canvas.getContext('2d');
+              
+              if (ctx) {
+                // Fill with base color
+                ctx.fillStyle = `#${material.color.getHexString()}`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Apply text with lighter color for embossed appearance
+                ctx.globalCompositeOperation = 'screen';
+                ctx.globalAlpha = 0.3;
+                ctx.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
+                
+                // Create texture from canvas
+                const combinedTexture = new THREE.CanvasTexture(canvas);
+                combinedTexture.needsUpdate = true;
+                newMaterial.map = combinedTexture;
+              }
+            }
+            
+            child.material = newMaterial;
+            child.material.needsUpdate = true;
+          }
+        });
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading text texture:', error);
       }
-    });
-  }, [clonedScene, dynamicTexture, textureUrl]);
+    );
+    
+    return () => {
+      if (textTextureRef.current) {
+        textTextureRef.current.dispose();
+        textTextureRef.current = null;
+      }
+    };
+  }, [clonedScene, textureUrl, originalTextures, url]);
+
+
 
   if (!clonedScene) {
     return (

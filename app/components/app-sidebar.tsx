@@ -331,7 +331,7 @@ export function AppSidebar({
         {activeSection === 'text' && (
           <div className="space-y-2">
             <UVTextEditor 
-              uvMap="/UV_MAP_OF_MODEL.png"
+              uvMapUrl="/UV_MAP_OF_MODEL.png"
               onTextUpdate={onTextTextureUpdate}
             />
           </div>
