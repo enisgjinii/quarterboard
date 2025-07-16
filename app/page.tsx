@@ -15,9 +15,17 @@ import { ModelLoadData } from "./components/three-scene"
 import { validateModelFile } from "@/lib/model-utils"
 import { ErrorBoundary } from "react-error-boundary"
 import { MobileSidebar } from "./components/mobile-sidebar"
+import { MobileHeader } from "./components/mobile-header"
 import { logError } from "@/lib/error-utils"
 import { ErrorDisplay, MobileErrorOverlay } from "./components/error-display"
 import { ErrorMonitor } from "./components/error-monitor"
+import { MobileGestures } from "./components/mobile-gestures"
+import { MobileOptimizations, useMobilePerformance } from "./components/mobile-optimizations"
+import { MobilePerformanceMonitor } from "./components/mobile-performance-monitor"
+import { MobileLayout } from "./components/mobile-layout"
+import { MobileControls } from "./components/mobile-controls"
+import { MobileGestureFeedback, useHapticFeedback, useGestureRecognition } from "./components/mobile-gesture-feedback"
+import { MobileNotification, useMobileToast } from "./components/mobile-notification"
 
 interface MeshData {
   name: string;
@@ -89,7 +97,7 @@ function QuarterboardDesigner() {
   const [arSupported, setArSupported] = useState(false)
   
   // Mobile Navigation State
-  const [activeMobileSection, setActiveMobileSection] = useState<'model' | 'colors' | 'ar' | 'share'>('model')
+  const [activeMobileSection, setActiveMobileSection] = useState<'model' | 'colors' | 'ar' | 'share' | 'settings'>('model')
   
   // State for the dynamically generated text texture
   const [textTexture, setTextTexture] = useState<string | null>(null);
@@ -147,6 +155,20 @@ function QuarterboardDesigner() {
   const [currentError, setCurrentError] = useState<Error | string | null>(null);
   const [showErrorOverlay, setShowErrorOverlay] = useState(false);
   const [showErrorMonitor, setShowErrorMonitor] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Mobile performance optimizations
+  const mobilePerformance = useMobilePerformance();
+  
+  // Mobile gesture and haptic feedback
+  const { triggerHaptic } = useHapticFeedback();
+  const { currentGesture, gestureData, recognizeGesture } = useGestureRecognition();
+  
+  // Mobile controls state
+  const [showMobileControls, setShowMobileControls] = useState(false);
+  
+  // Mobile toast system
+  const mobileToast = useMobileToast();
   
   // Use ref to access current modelColor without causing re-renders
   const modelColorRef = useRef(modelColor);
@@ -460,145 +482,220 @@ function QuarterboardDesigner() {
       </div>
       
       {/* Mobile Layout */}
-      <div className="md:hidden flex flex-col h-screen w-full">
-        {/* Mobile Header */}
-        <div className="flex-shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-                Quarterboard Designer
-              </h1>
-              <div className="text-xs text-slate-500 dark:text-slate-400 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded">
-                {selectedModel.replace('.glb', '').replace(/^The /, '')}
-              </div>
-              {appStatus === 'loading' && (
-                <div className="text-xs text-blue-600 dark:text-blue-400 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center gap-1">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-                  Loading...
-                </div>
-              )}
-              {appStatus === 'error' && (
-                <div 
-                  className="text-xs text-red-600 dark:text-red-400 px-2 py-1 bg-red-100 dark:bg-red-900/30 rounded flex items-center gap-1 cursor-help"
-                  title={statusMessage}
-                >
-                  <div className="w-2 h-2 bg-red-600 rounded-full"></div>
-                  Error
-                </div>
-              )}
-              {arMode && (
-                <div className="text-xs text-purple-600 dark:text-purple-400 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 rounded flex items-center gap-1">
-                  <div className="w-2 h-2 bg-purple-600 rounded-full animate-pulse"></div>
-                  AR Mode
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {appStatus === 'error' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setAppStatus('loading');
-                    setStatusMessage('Retrying...');
-                    setModelUrl(`/models/${encodeURIComponent(selectedModel)}?retry=${Date.now()}`);
-                  }}
-                  className="h-8 px-3 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 border-red-300 dark:border-red-600 text-red-700 dark:text-red-300"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="h-8 px-3 bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border-slate-300 dark:border-slate-600"
-              >
-                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
-              {/* Test Error Button - Remove in production */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const testError = new Error('Test error for mobile display');
-                  setCurrentError(testError);
-                  setShowErrorOverlay(true);
-                  logError(testError, undefined, 'error');
-                }}
-                className="h-8 px-3 bg-orange-50 dark:bg-orange-900/30 hover:bg-orange-100 dark:hover:bg-orange-900/50 border-orange-300 dark:border-orange-600 text-orange-700 dark:text-orange-300"
-              >
-                Test Error
-              </Button>
-              {/* Error Monitor Toggle */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowErrorMonitor(!showErrorMonitor)}
-                className="h-8 px-3 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300"
-              >
-                Monitor
-              </Button>
-            </div>
-          </div>
-        </div>
+      <MobileLayout
+        header={
+          <MobileHeader
+            selectedModel={selectedModel}
+            appStatus={appStatus}
+            statusMessage={statusMessage}
+            arMode={arMode}
+            onRetry={() => {
+              setAppStatus('loading');
+              setStatusMessage('Retrying...');
+              setModelUrl(`/models/${encodeURIComponent(selectedModel)}?retry=${Date.now()}`);
+            }}
+            onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+            isFullscreen={isFullscreen}
+          />
+        }
+        sidebar={
+          <MobileSidebar
+            activeSection={activeMobileSection}
+            onSectionChange={(section) => setActiveMobileSection(section)}
+            selectedModel={selectedModel}
+            setSelectedModel={setSelectedModel}
+            modelColor={modelColor}
+            setModelColor={setModelColor}
+            meshColors={meshColors}
+            setMeshColors={setMeshColors}
+            arMode={arMode}
+            onToggleAR={() => {
+              console.log('Mobile AR toggle clicked, current arMode:', arMode);
+              setArMode(!arMode);
+              if (!arMode) {
+                startARSession();
+              } else {
+                stopARSession();
+              }
+            }}
+            onTakeScreenshot={takeScreenshot}
+          />
+        }
+      >
+        {/* AR Viewer Overlay */}
+        {arMode && (
+          <ARViewer
+            modelUrl={modelUrl}
+            modelColor={modelColor}
+            meshColors={meshColors}
+            isActive={arMode}
+            onPlaced={handleARPlaced}
+            scale={arScale}
+            onScaleChange={setArScale}
+          />
+        )}
         
-        {/* Mobile Main Content */}
-        <div className="flex-1 relative">
-          {/* AR Viewer Overlay */}
-          {arMode && (
-            <ARViewer
-              modelUrl={modelUrl}
-              modelColor={modelColor}
-              meshColors={meshColors}
-              isActive={arMode}
-              onPlaced={handleARPlaced}
-              scale={arScale}
-              onScaleChange={setArScale}
-            />
-          )}
-          
-          {/* Main 3D Viewer */}
-          <Suspense fallback={null}>
-            <R3FModelViewer
-              key={modelUrl}
-              modelUrl={modelUrl}
-              modelColor={modelColor}
-              onModelLoad={handleModelLoad}
-              onModelError={handleModelError}
-              onMeshClick={handleMeshClick}
-              selectedMesh={selectedMesh}
-              meshColors={meshColors}
-              textTexture={textTexture}
-            />
-          </Suspense>
-        </div>
-      </div>
-      
-      {/* Mobile Sidebar - Outside the mobile layout container */}
-      <div className="md:hidden">
-        <MobileSidebar
-          activeSection={activeMobileSection}
-          onSectionChange={setActiveMobileSection}
-          selectedModel={selectedModel}
-          setSelectedModel={setSelectedModel}
-          modelColor={modelColor}
-          setModelColor={setModelColor}
-          meshColors={meshColors}
-          setMeshColors={setMeshColors}
-          arMode={arMode}
-          onToggleAR={() => {
-            console.log('Mobile AR toggle clicked, current arMode:', arMode);
-            setArMode(!arMode);
-            if (!arMode) {
-              startARSession();
-            } else {
-              stopARSession();
-            }
+        {/* Main 3D Viewer with Mobile Optimizations */}
+        <MobileOptimizations
+          onResetView={() => {
+            // Reset camera view
+            console.log('Reset view')
           }}
-          onTakeScreenshot={takeScreenshot}
+          onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+          onZoomIn={() => {
+            // Zoom in
+            console.log('Zoom in')
+          }}
+          onZoomOut={() => {
+            // Zoom out
+            console.log('Zoom out')
+          }}
+          isFullscreen={isFullscreen}
+        >
+                      <MobileGestures
+                              onPinchZoom={(scale) => {
+                  console.log('Pinch zoom:', scale)
+                  recognizeGesture('pinch', { scale })
+                  triggerHaptic('medium')
+                  mobileToast.success('Zoom', `Zoomed ${scale > 1 ? 'in' : 'out'}`)
+                }}
+              onPan={(deltaX, deltaY) => {
+                console.log('Pan:', deltaX, deltaY)
+                recognizeGesture('pan', { deltaX, deltaY })
+                triggerHaptic('light')
+              }}
+              onRotate={(rotation) => {
+                console.log('Rotate:', rotation)
+                recognizeGesture('rotate', { rotation })
+                triggerHaptic('medium')
+              }}
+                              onDoubleTap={() => {
+                  console.log('Double tap')
+                  recognizeGesture('tap')
+                  triggerHaptic('heavy')
+                  mobileToast.success('Gesture', 'Double tap detected')
+                }}
+                              onSwipeUp={() => {
+                  console.log('Swipe up')
+                  recognizeGesture('swipe', { direction: 'up' })
+                  triggerHaptic('medium')
+                  mobileToast.success('Gesture', 'Swiped up')
+                }}
+                              onSwipeDown={() => {
+                  console.log('Swipe down')
+                  recognizeGesture('swipe', { direction: 'down' })
+                  triggerHaptic('medium')
+                  mobileToast.success('Gesture', 'Swiped down')
+                }}
+                              onSwipeLeft={() => {
+                  console.log('Swipe left')
+                  recognizeGesture('swipe', { direction: 'left' })
+                  triggerHaptic('medium')
+                  mobileToast.success('Gesture', 'Swiped left')
+                }}
+                              onSwipeRight={() => {
+                  console.log('Swipe right')
+                  recognizeGesture('swipe', { direction: 'right' })
+                  triggerHaptic('medium')
+                  mobileToast.success('Gesture', 'Swiped right')
+                }}
+                              onLongPress={() => {
+                  console.log('Long press')
+                  recognizeGesture('longPress')
+                  triggerHaptic('heavy')
+                  mobileToast.success('Gesture', 'Long press detected')
+                }}
+              onTap={(x, y) => {
+                console.log('Tap at:', x, y)
+                recognizeGesture('tap', { x, y })
+                triggerHaptic('light')
+              }}
+            >
+            <Suspense fallback={null}>
+              <R3FModelViewer
+                key={modelUrl}
+                modelUrl={modelUrl}
+                modelColor={modelColor}
+                onModelLoad={handleModelLoad}
+                onModelError={handleModelError}
+                onMeshClick={handleMeshClick}
+                selectedMesh={selectedMesh}
+                meshColors={meshColors}
+                textTexture={textTexture}
+              />
+            </Suspense>
+          </MobileGestures>
+        </MobileOptimizations>
+
+        {/* Mobile Performance Monitor */}
+        <MobilePerformanceMonitor
+          onOptimize={(recommendations) => {
+            console.log('Performance optimization recommendations:', recommendations);
+            toast.success('Performance optimizations applied');
+          }}
+          showDetails={true}
         />
-      </div>
+
+        {/* Mobile Controls */}
+        <MobileControls
+          onZoomIn={() => {
+            console.log('Zoom in')
+            triggerHaptic('medium')
+          }}
+          onZoomOut={() => {
+            console.log('Zoom out')
+            triggerHaptic('medium')
+          }}
+          onResetView={() => {
+            console.log('Reset view')
+            triggerHaptic('light')
+          }}
+          onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+          onTakeScreenshot={takeScreenshot}
+          onShare={() => {
+            console.log('Share')
+            triggerHaptic('medium')
+            mobileToast.info('Coming Soon', 'Share feature will be available soon')
+          }}
+          onExport={() => {
+            console.log('Export')
+            triggerHaptic('medium')
+            mobileToast.info('Coming Soon', 'Export feature will be available soon')
+          }}
+          onSettings={() => {
+            console.log('Settings')
+            triggerHaptic('light')
+            setActiveMobileSection('settings')
+          }}
+          isFullscreen={isFullscreen}
+          showControls={showMobileControls}
+          onToggleControls={() => setShowMobileControls(!showMobileControls)}
+        />
+
+        {/* Mobile Gesture Feedback */}
+        <MobileGestureFeedback
+          gestureType={currentGesture as any}
+          position={gestureData?.x && gestureData?.y ? { x: gestureData.x, y: gestureData.y } : undefined}
+          scale={gestureData?.scale}
+          rotation={gestureData?.rotation}
+        />
+
+        {/* Mobile Toast Container */}
+        <div className="fixed top-4 left-4 right-4 z-50 space-y-2">
+          {mobileToast.toasts.map((toast) => (
+            <MobileNotification
+              key={toast.id}
+              type={toast.type}
+              title={toast.title}
+              message={toast.message}
+              duration={toast.duration}
+              onClose={() => mobileToast.removeToast(toast.id)}
+              show={true}
+            />
+          ))}
+        </div>
+      </MobileLayout>
       
       {/* Desktop Main Content */}
       <div className="hidden md:flex flex-1 flex-col overflow-hidden">

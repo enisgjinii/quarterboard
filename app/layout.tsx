@@ -3,6 +3,7 @@ import { Metadata } from "next"
 import { ClientLayout } from "./components/client-layout"
 import { ErrorHandlers } from "./components/error-handlers"
 import "./globals.css"
+import "./mobile-styles.css"
 
 export default function RootLayout({
   children,
