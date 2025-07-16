@@ -41,7 +41,10 @@ export function useDevicePerformance() {
       return isLowEndBrowser;
     };
     
-    setIsLowEndDevice(detectLowEndDevice());
+    // Only run detection on client side
+    if (typeof window !== 'undefined') {
+      setIsLowEndDevice(detectLowEndDevice());
+    }
   }, []);
   
   return { isLowEndDevice };

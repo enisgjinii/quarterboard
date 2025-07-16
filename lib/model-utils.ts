@@ -176,3 +176,40 @@ export function cleanupModel(model: Object3D): void {
     }
   });
 }
+
+/**
+ * Validates if a model file exists and is accessible
+ * @param modelUrl The URL of the model to validate
+ * @returns Promise that resolves to true if the model is accessible
+ */
+export async function validateModelFile(modelUrl: string): Promise<boolean> {
+  try {
+    const response = await fetch(modelUrl, { method: 'HEAD' });
+    return response.ok;
+  } catch (error) {
+    console.error(`Model validation failed for ${modelUrl}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Gets a list of available models by checking which files exist
+ * @param modelUrls Array of model URLs to check
+ * @returns Promise that resolves to an array of available model URLs
+ */
+export async function getAvailableModels(modelUrls: string[]): Promise<string[]> {
+  const availableModels: string[] = [];
+  
+  for (const url of modelUrls) {
+    try {
+      const isAvailable = await validateModelFile(url);
+      if (isAvailable) {
+        availableModels.push(url);
+      }
+    } catch (error) {
+      console.warn(`Failed to validate model ${url}:`, error);
+    }
+  }
+  
+  return availableModels;
+}

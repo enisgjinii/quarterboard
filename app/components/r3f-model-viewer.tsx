@@ -1,8 +1,9 @@
-import { Suspense, useMemo } from 'react';
+import { Suspense, useMemo, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ThreeScene, ModelLoadData } from './three-scene';
 import { useDevicePerformance } from '@/hooks/use-device-performance';
+import { useGLTF } from '@react-three/drei';
 
 interface MeshData {
   name: string;
@@ -14,6 +15,7 @@ interface ModelViewerProps {
   modelUrl: string;
   modelColor: string;
   onModelLoad?: (data: ModelLoadData) => void;
+  onModelError?: (error: string) => void;
   textTexture?: string | null;
   onMeshClick?: (meshName: string, mesh: any) => void;
   selectedMesh?: string | null;
@@ -24,6 +26,7 @@ export function R3FModelViewer({
   modelUrl,
   modelColor,
   onModelLoad,
+  onModelError,
   textTexture,
   onMeshClick,
   selectedMesh,
@@ -31,12 +34,29 @@ export function R3FModelViewer({
 }: ModelViewerProps) {
   const { isLowEndDevice } = useDevicePerformance();
 
-  const pixelRatio = useMemo(() => 
-    isLowEndDevice ? 
+  useEffect(() => {
+    if (!modelUrl) return
+
+    const loadModel = async () => {
+      try {
+        console.log('Loading model:', modelUrl)
+        const gltf = await useGLTF.preload(modelUrl)
+        console.log('Model loaded successfully:', modelUrl)
+      } catch (error) {
+        console.error('Error loading GLTF:', error)
+        // Don't throw here, let the component handle it gracefully
+      }
+    }
+
+    loadModel()
+  }, [modelUrl])
+
+  const pixelRatio = useMemo(() => {
+    if (typeof window === 'undefined') return 1;
+    return isLowEndDevice ? 
       Math.min(1.5, window.devicePixelRatio) : 
-      Math.min(2, window.devicePixelRatio),
-    [isLowEndDevice]
-  );
+      Math.min(2, window.devicePixelRatio);
+  }, [isLowEndDevice]);
   
   const glOptions = useMemo(() => ({
     antialias: !isLowEndDevice,
