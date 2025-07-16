@@ -1,6 +1,7 @@
 {
-  "name": "my-v0-project",
+  "name": "quarterboard-designer",
   "version": "0.1.0",
+  "description": "A modern, interactive 3D quarterboard customization tool built with Next.js, Three.js, and React Three Fiber",
   "private": true,
   "scripts": {
     "dev": "next dev",

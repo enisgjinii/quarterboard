@@ -1,6 +1,14 @@
 # 🏁 Quarterboard Designer
 
-A modern, interactive 3D quarterboard customization tool built with Next.js, Three.js, and React Three Fiber.
+[![Next.js](https://img.shields.io/badge/Next.js-15.2.4-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Three.js](https://img.shields.io/badge/Three.js-0.177.0-black?style=for-the-badge&logo=three.js)](https://threejs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.17-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+
+A modern, interactive 3D quarterboard customization tool built with Next.js, Three.js, and React Three Fiber. Design and customize quarterboards with real-time 3D preview, individual part coloring, and advanced text customization.
+
+![Quarterboard Designer Demo](https://img.shields.io/badge/Demo-Coming_Soon-green?style=for-the-badge)
 
 ## ✨ Features
 
@@ -26,30 +34,37 @@ A modern, interactive 3D quarterboard customization tool built with Next.js, Thr
 - **Text Scaling**: Smooth scaling controls for perfect sizing
 - **Visual Feedback**: Clear indicators when in text editing mode
 
+### 📱 **Mobile & AR Support**
+- **Mobile Optimized**: Touch-friendly interface with gesture controls
+- **AR Integration**: Augmented Reality support for real-world placement
+- **Performance Monitoring**: Real-time performance tracking
+- **Haptic Feedback**: Tactile feedback for mobile interactions
+- **Responsive Design**: Adaptive layout for all screen sizes
+
 ### ⚡ **Performance Optimization**
 - **Auto Performance Mode**: Automatically detects device capabilities
 - **FPS Monitoring**: Real-time frame rate display (development mode)
 - **Quality Toggle**: Switch between performance and quality modes
 - **Smart Rendering**: Optimized rendering pipeline for smooth experience
 
-### 🎮 **Enhanced 3D Experience**
-- **Improved Lighting**: Professional lighting setup with shadows
-- **Better Camera**: Optimized camera positioning and controls
-- **Visual Enhancements**: Tone mapping and improved materials
-- **Grid System**: Professional grid overlay for spatial reference
+### 🛡️ **Error Handling**
+- **Comprehensive Error System**: Full error capture and display
+- **Mobile Error Overlays**: User-friendly error messages on mobile
+- **Error Monitoring**: Developer tools for debugging
+- **Graceful Degradation**: Fallback mechanisms for failed operations
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+ 
-- npm or pnpm
+- npm, yarn, or pnpm
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd quarterboard
+   git clone https://github.com/yourusername/quarterboard-designer.git
+   cd quarterboard-designer
    ```
 
 2. **Install dependencies**
@@ -57,6 +72,8 @@ A modern, interactive 3D quarterboard customization tool built with Next.js, Thr
    npm install
    # or
    pnpm install
+   # or
+   yarn install
    ```
 
 3. **Start development server**
@@ -64,6 +81,8 @@ A modern, interactive 3D quarterboard customization tool built with Next.js, Thr
    npm run dev
    # or
    pnpm dev
+   # or
+   yarn dev
    ```
 
 4. **Open in browser**
@@ -91,35 +110,75 @@ A modern, interactive 3D quarterboard customization tool built with Next.js, Thr
    - Click anywhere on the model to position text
    - Use manual coordinates for precise placement
 
-### **Performance Settings**
-- Toggle between **Performance** and **Quality** modes in the top bar
-- Performance mode automatically enables on slower devices
-- Monitor FPS in development mode (top-right corner)
+### **Mobile & AR Features**
+- **Touch Controls**: Swipe to rotate, pinch to zoom
+- **AR Mode**: Enable AR for real-world placement
+- **Performance Mode**: Automatic optimization for slower devices
+- **Gesture Feedback**: Haptic feedback for interactions
 
-## 🎨 UI Layout
+## 📋 Available Models
+
+The application includes 12 professionally designed quarterboard models:
+
+- **Quarterboard** (Base model)
+- **Quarterboard_2** (Alternative design)
+- **The Captain Ahab**
+- **The Cisco Beach**
+- **The Gaslight**
+- **The Hilderbrand**
+- **The Landbank**
+- **The Madaket Millies**
+- **The MarkFlow**
+- **The Original**
+- **The Sconset**
+- **The Shangri-La**
+
+## 🛠️ Tech Stack
+
+### **Frontend Framework**
+- [Next.js 15](https://nextjs.org/) - React framework with App Router
+- [React 19](https://reactjs.org/) - UI library
+- [TypeScript](https://www.typescriptlang.org/) - Type safety
+
+### **3D Graphics**
+- [Three.js](https://threejs.org/) - 3D graphics library
+- [React Three Fiber](https://docs.pmnd.rs/react-three-fiber/) - React renderer for Three.js
+- [@react-three/drei](https://github.com/pmndrs/drei) - Useful helpers for R3F
+
+### **Styling & UI**
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+- [Radix UI](https://www.radix-ui.com/) - Accessible UI primitives
+- [Lucide React](https://lucide.dev/) - Beautiful icons
+
+### **Performance & Monitoring**
+- Custom performance monitoring hooks
+- Device capability detection
+- FPS monitoring and optimization
+
+## 📁 Project Structure
 
 ```
-┌─────────────┬─────────────────────────────────────┐
-│             │ Quarterboard Designer    [Controls] │
-│   Sidebar   ├─────────────────────────────────────┤
-│             │                                     │
-│ [Model]     │         3D Viewer Area             │
-│ [Colors]    │                                     │
-│ [Text]      │      (Interactive 3D Model)        │
-│             │                                     │
-│             ├─────────────────────────────────────┤
-│ [Actions]   │         [Text Controls]             │
-└─────────────┴─────────────────────────────────────┘
+quarterboard-designer/
+├── app/                    # Next.js app directory
+│   ├── components/        # React components
+│   │   ├── app-sidebar.tsx
+│   │   ├── ar-viewer.tsx
+│   │   ├── r3f-model-viewer.tsx
+│   │   ├── mobile-*.tsx  # Mobile-specific components
+│   │   └── error-*.tsx   # Error handling components
+│   ├── globals.css       # Global styles
+│   └── page.tsx          # Main application page
+├── components/            # Shared UI components
+│   └── ui/              # Radix UI components
+├── hooks/               # Custom React hooks
+├── lib/                 # Utility functions
+├── public/              # Static assets
+│   ├── models/          # 3D model files (.glb)
+│   └── fonts/           # Font files
+└── styles/              # Additional stylesheets
 ```
 
-## 🛠️ Technical Features
-
-### **Modern Tech Stack**
-- **Next.js 15**: Latest React framework with App Router
-- **Three.js**: Advanced 3D graphics and rendering
-- **React Three Fiber**: React components for Three.js
-- **Tailwind CSS**: Utility-first styling with custom animations
-- **TypeScript**: Full type safety throughout
+## 🎯 Key Features
 
 ### **3D Capabilities**
 - **GLTF Model Loading**: Supports complex 3D models with materials
@@ -133,70 +192,11 @@ A modern, interactive 3D quarterboard customization tool built with Next.js, Thr
 - **Optimized Rendering**: Smart frame rate limiting
 - **Memory Management**: Proper cleanup of 3D resources
 
-## 📋 Available Models
-
-- Quarterboard (Base)
-- Quarterboard_2 (Alternative)
-- The Captain Ahab
-- The Cisco Beach
-- The Gaslight
-- The Hilderbrand
-- The Landbank
-- The Madaket Millies
-- The MarkFlow
-- The Original
-- The Sconset
-- The Shangri-La
-
-## 🎯 Key Improvements
-
-### **From Previous Version**
-- ✅ **Simplified Single Renderer**: Removed dual Babylon.js/Three.js setup
-- ✅ **Enhanced UI**: Modern, organized interface with better UX
-- ✅ **Individual Mesh Control**: Each part can be colored independently
-- ✅ **Better Text System**: Advanced 3D text with multiple options
-- ✅ **Performance Optimization**: Smart rendering and device adaptation
-- ✅ **Improved Interactions**: Click-to-select and intuitive controls
-
-### **User Experience**
-- **Intuitive Navigation**: Clear visual hierarchy and logical grouping
-- **Visual Feedback**: Immediate response to all user actions
-- **Accessibility**: Proper ARIA labels and keyboard navigation
-- **Responsive Design**: Works on desktop, tablet, and mobile
-
-## 🔧 Development
-
-### **Project Structure**
-```
-app/
-├── components/           # React components
-│   ├── app-sidebar.tsx  # Main sidebar with controls
-│   ├── three-scene.tsx  # 3D scene component
-│   └── r3f-model-viewer.tsx # Model viewer wrapper
-├── globals.css          # Global styles and animations
-└── page.tsx            # Main application page
-
-lib/
-├── model-utils.ts      # 3D model utilities
-└── babylon-optimizer.ts # Performance optimizations
-
-hooks/
-├── use-device-performance.tsx # Device capability detection
-└── use-performance-monitor.tsx # FPS monitoring
-```
-
-### **Key Components**
-- **AppSidebar**: Tabbed interface with all controls
-- **ThreeScene**: Main 3D rendering component
-- **Model**: Individual 3D model with interaction handling
-- **ModelUtils**: Utilities for mesh processing and color management
-
-## 📱 Browser Support
-
-- ✅ Chrome 90+
-- ✅ Firefox 88+
-- ✅ Safari 14+
-- ✅ Edge 90+
+### **Mobile Experience**
+- **Touch Gestures**: Intuitive mobile controls
+- **Performance Monitoring**: Real-time device optimization
+- **Error Handling**: Comprehensive mobile error display
+- **AR Support**: Augmented reality capabilities
 
 ## 🚀 Performance Tips
 
@@ -205,18 +205,72 @@ hooks/
 3. **Use latest browser version** for optimal WebGL support
 4. **Ensure good GPU drivers** for best 3D performance
 
+## 📱 Browser Support
+
+- ✅ Chrome 90+
+- ✅ Firefox 88+
+- ✅ Safari 14+
+- ✅ Edge 90+
+
+## 🔧 Development
+
+### **Available Scripts**
+```bash
+npm run dev      # Start development server
+npm run build    # Build for production
+npm run start    # Start production server
+npm run lint     # Run ESLint
+```
+
+### **Environment Variables**
+Create a `.env.local` file for local development:
+```env
+# Add any environment variables here
+NEXT_PUBLIC_APP_NAME=Quarterboard Designer
+```
+
 ## 🎨 Customization
 
 The application is built with customization in mind:
+
 - **Themes**: Easy to modify color schemes in Tailwind config
-- **Models**: Add new .glb files to the public/models directory
-- **Fonts**: Add new fonts to public/fonts and update font list
-- **Animations**: Custom CSS animations in globals.css
+- **Models**: Add new .glb files to the `public/models` directory
+- **Fonts**: Add new fonts to `public/fonts` and update font list
+- **Animations**: Custom CSS animations in `globals.css`
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### **Development Setup**
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Three.js](https://threejs.org/) for 3D graphics capabilities
+- [React Three Fiber](https://docs.pmnd.rs/react-three-fiber/) for React integration
+- [Radix UI](https://www.radix-ui.com/) for accessible components
+- [Tailwind CSS](https://tailwindcss.com/) for styling utilities
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/yourusername/quarterboard-designer/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/quarterboard-designer/discussions)
+- **Email**: your-email@example.com
 
 ---
 
 **Built with ❤️ using modern web technologies for the best quarterboard customization experience.**
+
+[![GitHub stars](https://img.shields.io/github/stars/yourusername/quarterboard-designer?style=social)](https://github.com/yourusername/quarterboard-designer)
+[![GitHub forks](https://img.shields.io/github/forks/yourusername/quarterboard-designer?style=social)](https://github.com/yourusername/quarterboard-designer)
+[![GitHub issues](https://img.shields.io/github/issues/yourusername/quarterboard-designer)](https://github.com/yourusername/quarterboard-designer/issues)
+[![GitHub license](https://img.shields.io/github/license/yourusername/quarterboard-designer)](https://github.com/yourusername/quarterboard-designer/blob/main/LICENSE)
